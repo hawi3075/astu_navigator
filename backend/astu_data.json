@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Registrar Office",
+    "location": "Near the Main Gate, Block 1",
+    "description": "Handles student registration, transcripts, and ID cards.",
+    "coordinates": {"lat": 8.548, "lng": 39.291}
+  },
+  {
+    "name": "Female Library",
+    "location": "Behind the Social Science Block",
+    "description": "A quiet study area dedicated to female students.",
+    "coordinates": {"lat": 8.550, "lng": 39.293}
+  }
+]
