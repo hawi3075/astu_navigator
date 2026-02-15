@@ -1,15 +1,24 @@
 @import "tailwindcss";
 
 @theme {
+  /* Keyframes stay INSIDE @theme */
   @keyframes path-pulse {
     0% { opacity: 0.6; stroke-width: 6; }
     50% { opacity: 1; stroke-width: 9; }
     100% { opacity: 0.6; stroke-width: 6; }
   }
-  .animate-path {
-    animation: path-pulse 2s infinite ease-in-out;
-  }
+}
+
+/* Custom classes stay OUTSIDE @theme */
+.animate-path {
+  animation: path-pulse 2s infinite ease-in-out;
 }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background-color: #0f172a;
+}
