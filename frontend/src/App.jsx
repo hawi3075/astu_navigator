@@ -1,111 +1,184 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import ReactMarkdown from 'react-markdown'; // Added for better text formatting
-import { Send, MapPin, Bot, User, Loader2, Sparkles, Navigation } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { Send, Navigation, Sparkles, Bot, User, Loader2, Home, MapPin, Bookmark, Settings } from 'lucide-react';
+
+// Fix for Leaflet default marker icons
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+let DefaultIcon = L.icon({ 
+  iconUrl: markerIcon, 
+  shadowUrl: markerShadow, 
+  iconSize: [25, 41], 
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
+// Constants
+const USER_START = [8.5640, 39.2900]; 
+const ASTU_CENTER = [8.5615, 39.2908];
+
+// Smooth gliding map movement
+function RecenterMap({ coords }) {
+  const map = useMap();
+  useEffect(() => { 
+    if (coords) map.flyTo(coords, 18, { duration: 2.5 }); 
+  }, [coords]);
+  return null;
+}
 
 function App() {
   const [messages, setMessages] = useState([
-    { text: "Hello! I'm the **ASTU Navigator**. You can ask me about campus blocks, offices, or cafes!", isBot: true }
+    { text: "Welcome to **ASTU Navigator**. Ask me for a location and I'll show you the way!", isBot: true }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // mapTarget now stores both the coordinates and the name for the popup
+  const [mapTarget, setMapTarget] = useState({
+    coords: ASTU_CENTER,
+    name: "ASTU Campus"
+  });
+
   const chatEndRef = useRef(null);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  // Suggested questions for the user (2026 UX Tip)
-  const suggestions = ["Where is the Library?", "Registrar Office location", "Cafe recommendations"];
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSend = async (textOverride = null) => {
-    const messageToSend = textOverride || input;
-    if (!messageToSend.trim()) return;
-
-    setMessages(prev => [...prev, { text: messageToSend, isBot: false }]);
-    if (!textOverride) setInput("");
+  const handleSend = async () => {
+    if (!input.trim()) return;
+    const userMsg = input;
+    setMessages(prev => [...prev, { text: userMsg, isBot: false }]);
+    setInput("");
     setLoading(true);
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/chat', { text: messageToSend });
-      setMessages(prev => [...prev, { text: response.data.reply, isBot: true }]);
+      const response = await axios.post('http://127.0.0.1:8000/chat', { text: userMsg });
+      const botReply = response.data.reply;
+      setMessages(prev => [...prev, { text: botReply, isBot: true }]);
+      
+      const lowerReply = botReply.toLowerCase();
+      
+      // Logic to update destination based on AI reply
+      if (lowerReply.includes("library")) {
+        setMapTarget({ coords: [8.5630, 39.2915], name: "Female Library" });
+      } else if (lowerReply.includes("registrar")) {
+        setMapTarget({ coords: [8.5595, 39.2890], name: "Registrar Office" });
+      } else if (lowerReply.includes("block 1")) {
+        setMapTarget({ coords: [8.5620, 39.2910], name: "Academic Block 1" });
+      } else if (lowerReply.includes("cafe")) {
+        setMapTarget({ coords: [8.5612, 39.2920], name: "Campus Cafe" });
+      }
     } catch (error) {
-      setMessages(prev => [...prev, { text: "**Error:** Backend offline. Please check port 8000.", isBot: true }]);
+      setMessages(prev => [...prev, { text: "**Error:** Backend is offline.", isBot: true }]);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 font-sans text-slate-900">
-      {/* 2026 Modern Header */}
-      <header className="bg-white border-b border-slate-200 p-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-xl">
-            <Navigation size={20} className="text-white" />
+    <div className="flex h-screen w-screen bg-slate-900 overflow-hidden">
+      
+      {/* LEFT SIDEBAR: CHAT */}
+      <div className="w-[420px] h-full flex flex-col bg-white border-r z-20 shadow-2xl">
+        <header className="p-5 border-b flex items-center justify-between bg-white">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 p-2.5 rounded-xl text-white shadow-lg"><Navigation size={20}/></div>
+            <h1 className="font-bold text-slate-800 text-lg tracking-tight">ASTUNav AI</h1>
           </div>
-          <div>
-            <h1 className="text-lg font-bold">ASTU Navigator</h1>
-            <div className="flex items-center gap-1 text-[10px] text-green-600 font-medium uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Live Campus AI
-            </div>
-          </div>
-        </div>
-        <Sparkles size={20} className="text-blue-500" />
-      </header>
+          <Sparkles className="text-blue-500 animate-pulse" size={20}/>
+        </header>
 
-      {/* Chat Messages */}
-      <main className="flex-1 overflow-y-auto p-4 md:px-20 space-y-6">
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.isBot ? 'justify-start' : 'justify-end animate-in slide-in-from-right-5'}`}>
-            <div className={`flex gap-3 max-w-[85%] ${msg.isBot ? 'flex-row' : 'flex-row-reverse'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.isBot ? 'bg-blue-100 text-blue-600' : 'bg-blue-600 text-white'}`}>
-                {msg.isBot ? <Bot size={18} /> : <User size={18} />}
-              </div>
-              <div className={`p-4 rounded-2xl shadow-sm prose prose-sm ${msg.isBot ? 'bg-white border border-slate-200' : 'bg-blue-600 text-white prose-invert'}`}>
-                <ReactMarkdown>{msg.text}</ReactMarkdown>
+        <main className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+          {messages.map((m, i) => (
+            <div key={i} className={`flex ${m.isBot ? 'justify-start' : 'justify-end'}`}>
+              <div className={`p-4 rounded-2xl text-sm max-w-[85%] shadow-sm ${m.isBot ? 'bg-white text-slate-700 border' : 'bg-blue-600 text-white shadow-md'}`}>
+                <ReactMarkdown>{m.text}</ReactMarkdown>
               </div>
             </div>
-          </div>
-        ))}
-        {loading && (
-          <div className="flex justify-start items-center gap-2 text-slate-400 italic text-sm pl-12">
-            <Loader2 size={16} className="animate-spin" /> Thinking...
-          </div>
-        )}
-        <div ref={chatEndRef} />
-      </main>
+          ))}
+          {loading && <div className="flex justify-start pl-10"><Loader2 size={18} className="animate-spin text-blue-500" /></div>}
+          <div ref={chatEndRef} />
+        </main>
 
-      {/* Footer & Input */}
-      <footer className="p-4 bg-white border-t border-slate-200 md:px-20">
-        {/* Suggestion Chips */}
-        {!loading && messages.length < 3 && (
-          <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar">
-            {suggestions.map(s => (
-              <button key={s} onClick={() => handleSend(s)} className="whitespace-nowrap bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 px-4 py-2 rounded-full text-xs font-medium transition-all border border-slate-200">
-                {s}
-              </button>
-            ))}
+        <footer className="p-4 bg-white border-t pb-8 md:pb-6 relative z-30">
+          <div className="relative flex items-center">
+            <input 
+              value={input} onChange={(e)=>setInput(e.target.value)} onKeyDown={(e)=>e.key==='Enter'&&handleSend()}
+              className="w-full bg-slate-100 rounded-2xl p-4 pr-12 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700" 
+              placeholder="Where is the Library?" 
+            />
+            <button onClick={handleSend} className="absolute right-2 p-2.5 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700"><Send size={20}/></button>
           </div>
-        )}
-        
-        <div className="relative flex items-center">
-          <input 
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Type your question..."
-            className="w-full bg-slate-100 border-none rounded-2xl px-5 py-4 pr-14 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+        </footer>
+      </div>
+
+      {/* RIGHT SIDE: HYBRID SATELLITE MAP */}
+      <div className="flex-1 relative">
+        <MapContainer center={ASTU_CENTER} zoom={17} className="h-full w-full" zoomControl={false}>
+          {/* 🛰️ LAYER 1: Satellite View */}
+          <TileLayer 
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            attribution='&copy; Esri'
           />
-          <button 
-            onClick={() => handleSend()}
-            disabled={loading || !input.trim()}
-            className="absolute right-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-slate-300 transition-all shadow-md"
-          >
-            <Send size={20} />
-          </button>
+          {/* 🏷️ LAYER 2: Road Names & Labels */}
+          <TileLayer 
+            url="https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png"
+            pane="shadowPane"
+          />
+
+          {/* 🚶 ANIMATED GPS PATH */}
+          <Polyline 
+            positions={[USER_START, mapTarget.coords]} 
+            pathOptions={{
+              color: '#3b82f6', 
+              weight: 7, 
+              opacity: 0.9, 
+              dashArray: '1, 15', 
+              className: 'animate-path'
+            }} 
+          />
+
+          <Marker position={USER_START}><Popup>You are here (Entrance)</Popup></Marker>
+
+          {/* 📍 DESTINATION MARKER WITH DYNAMIC POPUP */}
+          <Marker position={mapTarget.coords}>
+            <Popup className="astu-custom-popup">
+              <div className="p-2 min-w-[180px]">
+                <h3 className="font-extrabold text-blue-600 text-lg border-b pb-1 mb-2">
+                  {mapTarget.name}
+                </h3>
+                <p className="text-slate-700 text-sm font-medium leading-tight">
+                  📍 Verified Building Location: <br/>
+                  <span className="text-blue-500 text-xs font-mono">
+                    Lat: {mapTarget.coords[0].toFixed(4)}, Lon: {mapTarget.coords[1].toFixed(4)}
+                  </span>
+                </p>
+                <div className="mt-3 bg-blue-600 p-2 rounded-lg text-center shadow-md">
+                  <p className="text-[10px] text-white uppercase font-black tracking-widest">
+                    ASTU Navigator Verified
+                  </p>
+                </div>
+              </div>
+            </Popup>
+          </Marker>
+
+          <RecenterMap coords={mapTarget.coords} />
+        </MapContainer>
+
+        {/* HUD UI OVERLAY */}
+        <div className="absolute top-8 left-8 z-[1000] pointer-events-none">
+          <div className="bg-white/90 backdrop-blur-xl p-5 rounded-3xl shadow-2xl border border-white">
+            <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">Find Anywhere</h2>
+            <div className="flex items-center gap-2 text-blue-600 font-bold text-[10px] mt-1 tracking-widest">
+              <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span> 
+              ADAMA TOWN HYBRID LIVE
+            </div>
+          </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 }
