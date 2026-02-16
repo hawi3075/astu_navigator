@@ -1,20 +1,25 @@
 import React from 'react';
 import { Home, MapPin, Bookmark, Settings } from 'lucide-react';
 
-const NavItem = ({ icon, label, active = false }) => (
-  <button className={`flex flex-col items-center gap-1 transition-all ${active ? 'text-blue-400 scale-110' : 'text-slate-400 hover:text-white'}`}>
-    {icon}
-    <span className="text-[10px] font-bold uppercase tracking-tighter">{label}</span>
+const NavItem = ({ icon, label, active, onClick }) => (
+  <button 
+    onClick={() => onClick(label)}
+    className={`flex flex-col items-center gap-1 transition-all flex-1 py-1 ${active ? 'text-white scale-105' : 'text-blue-200 hover:text-white'}`}
+  >
+    <div className={`p-1.5 rounded-lg transition-all ${active ? 'bg-white/20 shadow-inner' : ''}`}>
+      {icon}
+    </div>
+    <span className="text-[9px] font-bold uppercase tracking-widest">{label}</span>
   </button>
 );
 
-export default function Navbar() {
+export default function Navbar({ activeTab, setActiveTab }) {
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-slate-900/90 backdrop-blur-xl border border-white/10 py-4 px-8 rounded-3xl flex justify-between items-center shadow-2xl z-[5000]">
-      <NavItem icon={<Home size={22}/>} label="Home" active />
-      <NavItem icon={<MapPin size={22}/>} label="Campus" />
-      <NavItem icon={<Bookmark size={22}/>} label="Saved" />
-      <NavItem icon={<Settings size={22}/>} label="Settings" />
+    <div className="fixed bottom-4 left-6 right-6 bg-blue-600 border border-blue-400/30 rounded-[24px] py-2 px-8 flex justify-between items-center shadow-xl z-[5000]">
+      <NavItem icon={<Home size={20}/>} label="Home" active={activeTab === 'Home'} onClick={setActiveTab} />
+      <NavItem icon={<MapPin size={20}/>} label="Campus" active={activeTab === 'Campus'} onClick={setActiveTab} />
+      <NavItem icon={<Bookmark size={20}/>} label="Saved" active={activeTab === 'Saved'} onClick={setActiveTab} />
+      <NavItem icon={<Settings size={20}/>} label="Settings" active={activeTab === 'Settings'} onClick={setActiveTab} />
     </div>
   );
 }

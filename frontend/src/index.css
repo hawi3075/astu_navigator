@@ -1,24 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  /* Keyframes stay INSIDE @theme */
+  /* Only define the keyframes here */
   @keyframes path-pulse {
-    0% { opacity: 0.6; stroke-width: 6; }
-    50% { opacity: 1; stroke-width: 9; }
-    100% { opacity: 0.6; stroke-width: 6; }
+    0%, 100% { opacity: 0.4; stroke-dashoffset: 0; }
+    50% { opacity: 1; stroke-dashoffset: 10; }
   }
 }
 
-/* Custom classes stay OUTSIDE @theme */
+/* Define the class OUTSIDE of the @theme block */
 .animate-path {
   animation: path-pulse 2s infinite ease-in-out;
 }
 
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-.leaflet-container {
-  width: 100%;
+/* Ensure the map container takes full height */
+#map, .leaflet-container {
   height: 100%;
-  background-color: #0f172a;
+  width: 100%;
+  border-radius: 40px; /* Matches your professional UI style */
 }
