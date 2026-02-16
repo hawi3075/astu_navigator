@@ -1,54 +1,40 @@
 import React, { useEffect, useState } from 'react';
-import { Mail, User, ShieldCheck, Trash2 } from 'lucide-react';
+import { User, Mail, Shield } from 'lucide-react';
 
-const UserManagement = () => {
+export default function UserManagement() {
     const [users, setUsers] = useState([]);
 
     useEffect(() => {
-        // Fetch users from your FastAPI backend
         fetch('http://localhost:8000/api/admin/users')
             .then(res => res.json())
-            .then(data => setUsers(data))
-            .catch(err => console.error("Error fetching users:", err));
+            .then(data => setUsers(data));
     }, []);
 
     return (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-xl font-bold text-slate-800 px-2">Registered Community</h2>
+        <div className="animate-in slide-in-from-bottom-5 duration-700">
+            <h2 className="text-xl font-bold text-slate-800 mb-6">Registered Students</h2>
             <div className="bg-white rounded-[32px] shadow-xl border border-slate-100 overflow-hidden">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left">
                     <thead className="bg-slate-900 text-white">
                         <tr>
-                            <th className="p-4 text-xs font-black uppercase tracking-widest">User</th>
-                            <th className="p-4 text-xs font-black uppercase tracking-widest text-center">Role</th>
-                            <th className="p-4 text-xs font-black uppercase tracking-widest text-right">Action</th>
+                            <th className="p-5 text-[10px] font-black uppercase">Student</th>
+                            <th className="p-5 text-[10px] font-black uppercase">Role</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {users.map((user) => (
-                            <tr key={user.email} className="hover:bg-slate-50 transition-colors">
-                                <td className="p-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-blue-100 p-2 rounded-full text-blue-600">
-                                            <User size={16} />
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-slate-700 text-sm">{user.full_name || 'Student'}</p>
-                                            <p className="text-xs text-slate-400 flex items-center gap-1">
-                                                <Mail size={10} /> {user.email}
-                                            </p>
-                                        </div>
+                        {users.map((u) => (
+                            <tr key={u.email} className="hover:bg-blue-50/50 transition-colors">
+                                <td className="p-5 flex items-center gap-3">
+                                    <div className="bg-blue-100 p-2 rounded-full text-blue-600"><User size={16}/></div>
+                                    <div>
+                                        <div className="font-bold text-slate-700 text-sm">{u.name}</div>
+                                        <div className="text-[10px] text-slate-400 uppercase font-bold">{u.email}</div>
                                     </div>
                                 </td>
-                                <td className="p-4 text-center">
-                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${user.role === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-green-100 text-green-600'}`}>
-                                        {user.role.toUpperCase()}
+                                <td className="p-5">
+                                    <span className={`text-[9px] font-black px-3 py-1 rounded-full ${u.role === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-green-100 text-green-600'}`}>
+                                        {u.role?.toUpperCase()}
                                     </span>
-                                </td>
-                                <td className="p-4 text-right">
-                                    <button className="text-red-400 hover:text-red-600 transition-colors p-2">
-                                        <Trash2 size={18} />
-                                    </button>
                                 </td>
                             </tr>
                         ))}
@@ -57,6 +43,4 @@ const UserManagement = () => {
             </div>
         </div>
     );
-};
-
-export default UserManagement;
+}
