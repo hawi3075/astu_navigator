@@ -50,7 +50,7 @@ function RecenterMap({ coords }) {
 
 export default function MapPage() {
   const [messages, setMessages] = useState([
-    { text: "Welcome to ASTU! Ask me to find any building like **Oda Nabe Hall** or **Block 304**.", isBot: true }
+    { text: "Welcome to ASTU! Ask me to find any building like **Oda Nabe Hall** or the **Female Library**.", isBot: true }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -58,18 +58,20 @@ export default function MapPage() {
   const [mapTarget, setMapTarget] = useState({ coords: ASTU_CENTER, name: "ASTU Campus", category: "General" });
   const chatEndRef = useRef(null);
 
+  // Fetch all markers for the map overlay
   useEffect(() => {
     const fetchLocs = async () => {
       try {
         const res = await axios.get('http://localhost:8000/api/admin/locations_list');
         setDbLocations(res.data);
       } catch (err) {
-        console.error("Backend unreachable.");
+        console.error("Backend unreachable. Ensure your FastAPI server is running.");
       }
     };
     fetchLocs();
   }, []);
 
+  // Auto-scroll chat to bottom
   useEffect(() => { 
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); 
   }, [messages]);
@@ -81,25 +83,35 @@ export default function MapPage() {
     setInput("");
     setLoading(true);
 
-    const matchedBuilding = dbLocations.find(loc => 
-      userText.toLowerCase().includes(loc.name.toLowerCase()) ||
-      loc.name.toLowerCase().includes(userText.toLowerCase())
-    );
-
     try {
+      // 1. Send query to Smart AI Backend
       const response = await axios.post('http://127.0.0.1:8000/api/chat', { message: userText });
-      let botReply = response.data.reply;
+      const { reply, target } = response.data;
 
-      if (matchedBuilding) {
+      // 2. Update Map based on Backend Search Result
+      if (target) {
         setMapTarget({ 
-          coords: [matchedBuilding.latitude, matchedBuilding.longitude], 
-          name: matchedBuilding.name,
-          category: matchedBuilding.category
+          coords: [target.lat, target.lng], 
+          name: target.name,
+          category: "Target"
         });
+      } else {
+        // Fallback frontend search if backend doesn't return a target
+        const matchedBuilding = dbLocations.find(loc => 
+          userText.toLowerCase().includes(loc.name.toLowerCase())
+        );
+        if (matchedBuilding) {
+          setMapTarget({ 
+            coords: [matchedBuilding.latitude, matchedBuilding.longitude], 
+            name: matchedBuilding.name,
+            category: matchedBuilding.category
+          });
+        }
       }
-      setMessages(prev => [...prev, { text: botReply, isBot: true }]);
+      
+      setMessages(prev => [...prev, { text: reply, isBot: true }]);
     } catch (e) { 
-      setMessages(prev => [...prev, { text: "Connection error.", isBot: true }]);
+      setMessages(prev => [...prev, { text: "Connection error. Please check your backend.", isBot: true }]);
     } finally { 
       setLoading(false); 
     }
@@ -140,10 +152,10 @@ export default function MapPage() {
                 value={input} 
                 onChange={(e) => setInput(e.target.value)} 
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                className="w-full bg-slate-100 rounded-xl p-3 pr-12 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+                className="w-full bg-slate-100 rounded-xl p-3 pr-12 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700" 
                 placeholder="Where is the Library?" 
               />
-              <button onClick={handleSend} className="absolute right-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <button onClick={handleSend} disabled={loading} className="absolute right-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 transition-colors">
                 {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18}/>}
               </button>
             </div>
@@ -170,9 +182,9 @@ export default function MapPage() {
             {dbLocations.map((loc) => (
               <Marker key={loc._id} position={[loc.latitude, loc.longitude]} icon={getIcon(loc.category, mapTarget.name === loc.name)}>
                 <Popup>
-                  <div className="text-center">
+                  <div className="text-center p-1">
                     <p className="font-bold text-blue-700 m-0">{loc.name}</p>
-                    <p className="text-[10px] text-slate-400 uppercase m-0">{loc.category}</p>
+                    <p className="text-[10px] text-slate-400 uppercase m-0 font-semibold">{loc.category}</p>
                   </div>
                 </Popup>
               </Marker>
@@ -181,7 +193,7 @@ export default function MapPage() {
           </MapContainer>
 
           {/* Floating Target Badge */}
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-5 py-2 rounded-full shadow-lg z-[1000] border border-blue-100 flex items-center gap-2">
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-md px-5 py-2 rounded-full shadow-lg z-[1000] border border-blue-100 flex items-center gap-2 transition-all">
             <MapPin size={16} className="text-blue-600" />
             <span className="text-sm font-bold text-slate-700">To: <span className="text-blue-600">{mapTarget.name}</span></span>
           </div>

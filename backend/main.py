@@ -36,13 +36,7 @@ class LocationRequest(BaseModel):
     latitude: float
     longitude: float
     category: str
-    description: str
-
-class EventRequest(BaseModel):
-    title: str
-    date: str
-    location: str
-    description: str
+    description: str = ""
 
 class ChatRequest(BaseModel):
     message: str
@@ -53,7 +47,7 @@ class ChatRequest(BaseModel):
 async def register_user(user: RegisterRequest):
     existing_user = await db.users.find_one({"email": user.email})
     if existing_user:
-        raise HTTPException(status_code=400, detail="User already exists with this email")
+        raise HTTPException(status_code=400, detail="User already exists")
     
     new_user = {
         "name": user.name,
@@ -77,32 +71,7 @@ async def login_user(user: LoginRequest):
         }
     }
 
-# --- ADMIN: USER MANAGEMENT ROUTES ---
-
-@app.get("/api/admin/users")
-async def get_users():
-    users = []
-    async for user in db.users.find({}, {"password": 0}):
-        user["_id"] = str(user["_id"])
-        users.append(user)
-    return users
-
-@app.delete("/api/admin/users/{user_id}")
-async def delete_user(user_id: str):
-    try:
-        result = await db.users.delete_one({"_id": ObjectId(user_id)})
-        if result.deleted_count == 1:
-            return {"message": "User deleted successfully"}
-        raise HTTPException(status_code=404, detail="User not found")
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid ID format")
-
-# --- ADMIN: LOCATION/MAP ROUTES ---
-
-@app.post("/api/admin/locations")
-async def add_location(loc: LocationRequest):
-    await db.locations.insert_one(loc.model_dump())
-    return {"message": "Location added successfully!"}
+# --- ADMIN ROUTES ---
 
 @app.get("/api/admin/locations_list")
 async def get_locations():
@@ -112,54 +81,57 @@ async def get_locations():
         locations.append(loc)
     return locations
 
-# --- ADMIN: ANALYTICS & EVENT ROUTES ---
+@app.post("/api/admin/locations")
+async def add_location(loc: LocationRequest):
+    await db.locations.insert_one(loc.model_dump())
+    return {"message": "Location added successfully!"}
 
-@app.get("/api/admin/stats")
-async def get_stats():
-    user_count = await db.users.count_documents({})
-    location_count = await db.locations.count_documents({})
-    event_count = await db.events.count_documents({})
-    return {
-        "totalUsers": user_count,
-        "totalBlocks": location_count,
-        "activeEvents": event_count
-    }
-
-@app.post("/api/admin/events")
-async def add_event(event: EventRequest):
-    await db.events.insert_one(event.model_dump())
-    return {"message": "Event published to campus!"}
-
-@app.get("/api/admin/events")
-async def get_events():
-    events = []
-    async for event in db.events.find():
-        event["_id"] = str(event["_id"])
-        events.append(event)
-    return events
-
-# --- 🚀 SMART AI CHAT ROUTE (UPDATED) ---
+# --- 🚀 BULLETPROOF AI CHAT ROUTE ---
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
-    query = request.message.lower()
+    user_msg = request.message.lower().strip()
     
-    # Search database for a matching building name
-    # Using regex for partial matches (e.g., "oda" matches "Oda Nabe Hall")
-    location = await db.locations.find_one({"name": {"$regex": query, "$options": "i"}})
+    # 1. Fetch all locations from DB to perform fuzzy matching
+    cursor = db.locations.find({})
+    locations = await cursor.to_list(length=200)
     
-    if location:
+    # 2. Define "Filler" words to ignore
+    fillers = {"where", "is", "the", "find", "show", "me", "locate", "search", "for", "a", "an"}
+    query_words = [w for w in user_msg.split() if w not in fillers]
+    
+    found_loc = None
+
+    # 3. Smart Search Logic
+    for loc in locations:
+        loc_name = loc["name"].lower()
+        
+        # Scenario A: Exact name is mentioned in the message (Best match)
+        # e.g., "Tell me where Oda Nabe Hall is" matches "Oda Nabe Hall"
+        if loc_name in user_msg:
+            found_loc = loc
+            break
+        
+        # Scenario B: Check if any significant word from the user matches the DB
+        # e.g., "oda" or "nabe" matches "Oda Nabe Hall"
+        if any(word in loc_name for word in query_words if len(word) > 2):
+            found_loc = loc
+            break
+
+    if found_loc:
         return {
-            "reply": f"I found {location['name']} for you. I've updated the map and drawn the blue navigation line to guide you.",
+            "reply": f"📍 I found **{found_loc['name']}**! I've updated your map and drawn the navigation path.",
             "target": {
-                "lat": location["latitude"],
-                "lng": location["longitude"],
-                "name": location["name"]
+                "lat": found_loc["latitude"],
+                "lng": found_loc["longitude"],
+                "name": found_loc["name"]
             }
         }
     
+    # 4. Fallback Suggestion
+    example = locations[0]["name"] if locations else "Oda Nabe Hall"
     return {
-        "reply": f"I'm sorry, I couldn't find '{request.message}' in the ASTU campus database. Please check the spelling or ask for a specific block number.",
+        "reply": f"I'm sorry, I couldn't find a match for '{user_msg}'. Please try using the specific building name like '{example}'.",
         "target": None
     }
 
