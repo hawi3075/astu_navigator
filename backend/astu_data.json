@@ -1,14 +1,79 @@
-[
-  {
-    "name": "Registrar Office",
-    "location": "Near the Main Gate, Block 1",
-    "description": "Handles student registration, transcripts, and ID cards.",
-    "coordinates": {"lat": 8.548, "lng": 39.291}
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Adama Science & Technology University", "category": "University" },
+      "geometry": { "type": "Point", "coordinates": [39.2897789, 8.5629455] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "ASTU Central Library", "category": "Academic" },
+      "geometry": { "type": "Point", "coordinates": [39.2913418, 8.5609704] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "ASTU New Admin Building", "category": "Admin" },
+      "geometry": { "type": "Point", "coordinates": [39.2902447, 8.5611715] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Material Science and Engineering School", "category": "Academic" },
+      "geometry": { "type": "Point", "coordinates": [39.2890518, 8.5613998] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Water Resources Engineering Dept", "category": "Academic" },
+      "geometry": { "type": "Point", "coordinates": [39.288461, 8.5609373] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Adama General Hospital", "category": "Healthcare" },
+      "geometry": { "type": "Point", "coordinates": [39.2827933, 8.5615019] }
+    },
+
+     {
+      "type": "Feature",
+      "properties": { "name": "ASTU Stadium", "category": "Sports" },
+      "geometry": { "type": "Point", "coordinates": [39.2941, 8.5652] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Main Gate", "category": "Gate" },
+      "geometry": { "type": "Point", "coordinates": [39.2862, 8.5585] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Freshman Block", "category": "Academic" },
+      "geometry": { "type": "Point", "coordinates": [39.2905, 8.5631] }
+    },
+    {
+  "type": "Feature",
+  "properties": { 
+    "name": "Female Students Library", 
+    "category": "Academic",
+    "description": "Independent library with 24/7 access for female students."
   },
-  {
-    "name": "Female Library",
-    "location": "Behind the Social Science Block",
-    "description": "A quiet study area dedicated to female students.",
-    "coordinates": {"lat": 8.550, "lng": 39.293}
+  "geometry": { "type": "Point", "coordinates": [39.2925, 8.5605] }
+},
+{
+  "type": "Feature",
+  "properties": { "name": "Female Dormitory (Block 006)", "category": "Dormitory" },
+  "geometry": { "type": "Point", "coordinates": [39.2930, 8.5600] }
+},
+{
+  "type": "Feature",
+  "properties": { "name": "Hachalu Hundessa Multipurpose Hall", "category": "General" },
+  "geometry": { "type": "Point", "coordinates": [39.2915, 8.5645] }
+},
+ 
+{
+  "type": "Feature",
+  "properties": { 
+    "name": "Oda Nabe Hall", 
+    "category": "Hall",
+    "description": "The main multipurpose assembly hall of ASTU, used for graduations and major events."
   }
-]
+  
+} ]
+}

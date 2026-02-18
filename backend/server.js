@@ -1,54 +1,43 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const validator = require('validator'); // For easy email validation
-const User = require('./models/User'); // Import your User model
 const cors = require('cors');
+const dotenv = require('dotenv');
+const User = require('./models/User'); // Ensure this path is correct
 
+dotenv.config();
 const app = express();
-app.use(express.json());
+
 app.use(cors());
+app.use(express.json());
 
-// REGISTRATION ROUTE
+// --- REGISTRATION ROUTE ---
 app.post('/api/register', async (req, res) => {
-  const { name, email, password } = req.body;
-
   try {
-    // 1. Validate Email Format
-    if (!validator.isEmail(email)) {
-      return res.status(400).json({ message: "The email is incorrect. Please use a valid email format." });
+    const { name, email, password } = req.body;
+
+    // 1. Basic check
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
     }
 
-    // 2. Validate Password Length
-    if (password.length < 6) {
-      return res.status(400).json({ message: "Password is too short. Use more than six characters." });
-    }
-
-    // 3. Check if User Already Exists
+    // 2. Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists. Please log in instead." });
+      return res.status(400).json({ message: "Email already registered" });
     }
 
-    // 4. Hash the password (Security First!)
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // 5. Save to Database
-    const newUser = new User({
-      name,
-      email,
-      password: hashedPassword
-    });
-
+    // 3. Create user
+    const newUser = new User({ name, email, password });
     await newUser.save();
 
-    res.status(201).json({ message: "Account created successfully!" });
-
+    res.status(201).json({ message: "User created successfully!" });
   } catch (error) {
+    console.error("REGISTRATION ERROR:", error); // This shows in your terminal
     res.status(500).json({ message: "Server error. Try again later." });
   }
 });
 
-const PORT = 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const PORT = process.env.PORT || 5000;
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => app.listen(PORT, () => console.log(`Server running on port ${PORT}`)))
+  .catch(err => console.log("DB Connection Error: ", err));

@@ -6,75 +6,127 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Send, Navigation, Loader2, Sparkles } from 'lucide-react';
 
-// Marker Fix
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
+// --- LEAFLET ASSET FIX ---
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-let DefaultIcon = L.icon({ iconUrl: markerIcon, shadowUrl: markerShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
-L.Marker.prototype.options.icon = DefaultIcon;
 
-// 1. DEFINE BOUNDS FOR ADAMA (Prevents zooming out to the whole world)
-const ADAMA_BOUNDS = [
-  [8.5200, 39.2500], // Southwest corner
-  [8.6000, 39.3300]  // Northeast corner
-];
+// --- DYNAMIC ICON GENERATOR ---
+// This function returns different colored markers based on building category
+const getIcon = (category, isTarget) => {
+  let color = 'blue'; // Default for generic points
+  const cat = category?.toLowerCase() || "";
 
-const USER_START = [8.5640, 39.2900];
+  if (isTarget) color = 'red';
+  else if (cat.includes('dorm')) color = 'green';
+  else if (cat.includes('library')) color = 'gold';
+  else if (cat.includes('hall') || cat.includes('oda')) color = 'orange';
+  else if (cat.includes('academic') || cat.includes('dept')) color = 'violet';
+  else if (cat.includes('health') || cat.includes('hospital')) color = 'red';
+
+  return new L.Icon({
+    iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+    shadowUrl: markerShadow,
+    iconSize: isTarget ? [30, 46] : [22, 35],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+  });
+};
+
+// Map Constraints
+const ADAMA_BOUNDS = [[8.5200, 39.2500], [8.6000, 39.3300]];
+const USER_START = [8.5640, 39.2900]; // Mock user location
 const ASTU_CENTER = [8.5615, 39.2908];
 
+// Component to handle map movement
 function RecenterMap({ coords }) {
   const map = useMap();
-  useEffect(() => { if (coords) map.flyTo(coords, 18, { duration: 1.5 }); }, [coords]);
+  useEffect(() => { 
+    if (coords) map.flyTo(coords, 18, { duration: 1.5 }); 
+  }, [coords, map]);
   return null;
 }
 
 export default function MapPage() {
-  const [messages, setMessages] = useState([{ text: "Welcome to ASTU! Ready to find your way?", isBot: true }]);
+  const [messages, setMessages] = useState([
+    { text: "Welcome to ASTU! Ask me to find any building like **Oda Nabe Hall** or the **Female Library**.", isBot: true }
+  ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [mapTarget, setMapTarget] = useState({ coords: ASTU_CENTER, name: "ASTU Campus" });
+  const [dbLocations, setDbLocations] = useState([]); 
+  const [mapTarget, setMapTarget] = useState({ coords: ASTU_CENTER, name: "ASTU Campus", category: "General" });
   const chatEndRef = useRef(null);
 
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  // 1. Fetch Locations from MongoDB on Mount
+  useEffect(() => {
+    const fetchLocs = async () => {
+      try {
+        const res = await axios.get('http://localhost:8000/api/admin/locations_list');
+        setDbLocations(res.data);
+      } catch (err) {
+        console.error("Database fetch failed. Make sure your backend is running!", err);
+      }
+    };
+    fetchLocs();
+  }, []);
 
+  // Auto-scroll chat
+  useEffect(() => { 
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); 
+  }, [messages]);
+
+  // 2. Main Logic: Send Message & Search Map
   const handleSend = async () => {
     if (!input.trim()) return;
-    setMessages(prev => [...prev, { text: input, isBot: false }]);
+    
+    const userText = input;
+    setMessages(prev => [...prev, { text: userText, isBot: false }]);
     setInput("");
     setLoading(true);
 
+    // Search logic: Check if any building name is inside the user's message
+    const matchedBuilding = dbLocations.find(loc => 
+      userText.toLowerCase().includes(loc.name.toLowerCase()) ||
+      loc.name.toLowerCase().includes(userText.toLowerCase())
+    );
+
     try {
-      const response = await axios.post('http://127.0.0.1:8000/chat', { text: input });
-      const botReply = response.data.reply;
-      setMessages(prev => [...prev, { text: botReply, isBot: true }]);
-      
-      const lower = botReply.toLowerCase();
-      // 2. UPDATED COORDINATES FOR FEMALE LIBRARY (Adjusted based on your feedback)
-      if (lower.includes("library")) {
-        setMapTarget({ coords: [8.5638, 39.2922], name: "Female Library" });
-      } else if (lower.includes("registrar")) {
-        setMapTarget({ coords: [8.5595, 39.2890], name: "Registrar Office" });
+      const response = await axios.post('http://127.0.0.1:8000/api/chat', { message: userText });
+      let botReply = response.data.reply;
+
+      if (matchedBuilding) {
+        setMapTarget({ 
+          coords: [matchedBuilding.latitude, matchedBuilding.longitude], 
+          name: matchedBuilding.name,
+          category: matchedBuilding.category
+        });
+        botReply += `\n\n📍 **I've located ${matchedBuilding.name} on the map for you.**`;
       }
-    } catch (e) { console.error(e); } finally { setLoading(false); }
+
+      setMessages(prev => [...prev, { text: botReply, isBot: true }]);
+    } catch (e) { 
+      setMessages(prev => [...prev, { text: "Connection error. I can't reach the AI, but the map is still active!", isBot: true }]);
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (
     <div className="app-shell flex h-screen w-screen p-6 pb-32 gap-6 overflow-hidden bg-slate-50">
       
-      {/* CHAT PANEL */}
-      <div className="w-[380px] flex flex-col bg-white rounded-[32px] border border-slate-200 overflow-hidden shadow-lg">
-        <header className="p-6 bg-blue-600 border-b border-blue-500 flex items-center justify-between shadow-md">
+      {/* --- CHAT SIDEBAR --- */}
+      <div className="w-[400px] flex flex-col bg-white rounded-[32px] border border-slate-200 overflow-hidden shadow-xl z-10">
+        <header className="p-6 bg-blue-600 flex items-center justify-between text-white">
           <div className="flex items-center gap-3">
-            <div className="bg-white/20 p-2 rounded-xl text-white"><Navigation size={18}/></div>
-            <h1 className="font-bold text-white text-lg tracking-tight">ASTUNav AI</h1>
+            <Navigation size={22} className="rotate-45"/>
+            <h1 className="font-bold text-xl tracking-tight">ASTUNav AI</h1>
           </div>
-          <Sparkles size={18} className="text-blue-100 animate-pulse"/>
+          <Sparkles size={20} className="text-blue-200 animate-pulse"/>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar bg-slate-50/30">
+        <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50/50">
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.isBot ? 'justify-start' : 'justify-end'}`}>
-              <div className={`p-4 rounded-2xl text-sm max-w-[90%] shadow-sm ${
-                m.isBot ? 'bg-white text-slate-800 border border-slate-100' : 'bg-blue-600 text-white font-medium'
+              <div className={`p-4 rounded-2xl text-sm max-w-[85%] shadow-sm leading-relaxed ${
+                m.isBot ? 'bg-white text-slate-800 border border-slate-100' : 'bg-blue-600 text-white'
               }`}>
                 <ReactMarkdown>{m.text}</ReactMarkdown>
               </div>
@@ -86,44 +138,73 @@ export default function MapPage() {
         <div className="p-5 bg-white border-t border-slate-100">
           <div className="relative flex items-center">
             <input 
-              value={input} onChange={(e)=>setInput(e.target.value)} onKeyDown={(e)=>e.key==='Enter'&&handleSend()}
-              className="w-full bg-slate-100 border-none rounded-xl p-3 text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/50" 
-              placeholder="Search building..." 
+              value={input} 
+              onChange={(e) => setInput(e.target.value)} 
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              className="w-full bg-slate-100 border-none rounded-2xl p-4 pr-12 outline-none focus:ring-2 focus:ring-blue-600/20 transition-all" 
+              placeholder="Where is the Library?" 
             />
-            <button onClick={handleSend} className="absolute right-2 p-2 bg-blue-600 text-white rounded-lg">
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16}/>}
+            <button 
+              onClick={handleSend} 
+              disabled={loading}
+              className="absolute right-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:bg-slate-300"
+            >
+              {loading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20}/>}
             </button>
           </div>
         </div>
       </div>
 
-      {/* MAP FRAME: RESTRICTED TO ADAMA */}
-      <div className="flex-1 map-frame relative h-full">
+      {/* --- INTERACTIVE MAP --- */}
+      <div className="flex-1 relative h-full rounded-[40px] overflow-hidden shadow-2xl border-[12px] border-white ring-1 ring-slate-200">
         <MapContainer 
           center={ASTU_CENTER} 
           zoom={16} 
-          minZoom={14} // 3. PREVENTS ZOOMING OUT TOO FAR
-          maxBounds={ADAMA_BOUNDS} // 4. LOCKS MAP TO ADAMA ONLY
+          minZoom={14} 
+          maxBounds={ADAMA_BOUNDS} 
           className="h-full w-full" 
           zoomControl={false}
         >
-          {/* Hybrid Map Layer (Shows roads + satellite for better accuracy) */}
+          {/* Satellite Layer */}
           <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
+          {/* Labels Layer */}
           <TileLayer url="https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png" pane="shadowPane" />
           
+          {/* Animated Navigation Line */}
           <Polyline 
             positions={[USER_START, mapTarget.coords]} 
-            pathOptions={{ color: '#2563eb', weight: 6, dashArray: '1, 15', className: 'animate-path' }} 
+            pathOptions={{ color: '#3b82f6', weight: 4, dashArray: '10, 10', className: 'animate-pulse' }} 
           />
 
-          <Marker position={mapTarget.coords}>
-            <Popup><div className="font-bold text-blue-600">{mapTarget.name}</div></Popup>
-          </Marker>
+          {/* Render All Database Locations */}
+          {dbLocations.map((loc) => {
+            const isTarget = mapTarget.name === loc.name;
+            return (
+              <Marker 
+                key={loc._id} 
+                position={[loc.latitude, loc.longitude]} 
+                icon={getIcon(loc.category, isTarget)}
+                opacity={isTarget ? 1 : 0.8}
+              >
+                <Popup className="custom-popup">
+                  <div className="text-center p-1">
+                    <p className="font-bold text-blue-800 m-0">{loc.name}</p>
+                    <p className="text-[10px] uppercase tracking-widest text-slate-500 m-0">{loc.category}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
+
           <RecenterMap coords={mapTarget.coords} />
         </MapContainer>
         
-        <div className="absolute top-6 right-6 bg-white/90 backdrop-blur-md px-4 py-2 rounded-full border border-slate-200 z-[1000] text-blue-600 text-[10px] font-black uppercase tracking-widest shadow-lg">
-          Adama Navigator Active
+        {/* Location Badge */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-6 py-3 rounded-full border border-slate-200 z-[1000] shadow-2xl flex items-center gap-3">
+          <div className="w-3 h-3 bg-blue-600 rounded-full animate-ping"></div>
+          <span className="text-slate-700 font-semibold text-sm">
+            Target: <span className="text-blue-600">{mapTarget.name}</span>
+          </span>
         </div>
       </div>
     </div>

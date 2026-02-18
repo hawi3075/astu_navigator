@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
-import { MapPin, PlusCircle, LogOut, Navigation, Building2, Users, LayoutDashboard, Settings, CheckCircle2 } from 'lucide-react';
+import { 
+    MapPin, PlusCircle, LogOut, Navigation, Building2, Users, 
+    LayoutDashboard, Settings, CheckCircle2, List, BarChart3, Calendar 
+} from 'lucide-react';
 import UserManagement from './UserManagement';
+import LocationList from './LocationList';
+import AdminStats from './AdminStats'; 
+import EventList from './EventList'; // ✅ Integrated the new list component
 
 const AdminDashboard = ({ onLogout }) => {
-    const [activeTab, setActiveTab] = useState('Manage');
+    // Added 'EventsList' to the possible active tabs
+    const [activeTab, setActiveTab] = useState('Manage'); 
     const [submitted, setSubmitted] = useState(false);
     const [formData, setFormData] = useState({
         name: '', latitude: '', longitude: '', category: 'Academic Block', description: ''
@@ -55,7 +62,7 @@ const AdminDashboard = ({ onLogout }) => {
                         <form onSubmit={handleSubmit} className="p-8 space-y-6">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Building Name</label>
-                                <input type="text" value={formData.name} onChange={(e)=>setFormData({...formData, name:e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500/50" required />
+                                <input type="text" placeholder="e.g. Block 504" value={formData.name} onChange={(e)=>setFormData({...formData, name:e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500/50" required />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <input type="number" step="any" placeholder="Lat (e.g. 8.54)" value={formData.latitude} onChange={(e)=>setFormData({...formData, latitude:e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500/50" required />
@@ -66,18 +73,36 @@ const AdminDashboard = ({ onLogout }) => {
                             </button>
                         </form>
                     </div>
-                ) : (
+                ) : activeTab === 'Users' ? (
                     <UserManagement />
+                ) : activeTab === 'List' ? (
+                    <LocationList />
+                ) : activeTab === 'EventsList' ? ( // ✅ Added condition for Event Management
+                    <EventList />
+                ) : (
+                    <AdminStats /> 
                 )}
             </main>
 
             {/* FLOATING BOTTOM NAV */}
-            <nav className="fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl border border-slate-200 shadow-2xl rounded-[30px] p-2 flex justify-around items-center z-50">
-                <button onClick={() => setActiveTab('Manage')} className={`flex flex-col items-center gap-1 p-3 rounded-2xl transition-all w-20 ${activeTab === 'Manage' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-100'}`}>
+            <nav className="fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl border border-slate-200 shadow-2xl rounded-[30px] p-2 flex justify-around items-center z-50 overflow-x-auto">
+                <button onClick={() => setActiveTab('Manage')} className={`flex flex-col items-center gap-1 p-3 rounded-2xl transition-all min-w-[64px] ${activeTab === 'Manage' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-100'}`}>
                     <LayoutDashboard size={20} />
                     <span className="text-[10px] font-bold">Manage</span>
                 </button>
-                <button onClick={() => setActiveTab('Users')} className={`flex flex-col items-center gap-1 p-3 rounded-2xl transition-all w-20 ${activeTab === 'Users' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-100'}`}>
+                <button onClick={() => setActiveTab('List')} className={`flex flex-col items-center gap-1 p-3 rounded-2xl transition-all min-w-[64px] ${activeTab === 'List' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-100'}`}>
+                    <List size={20} />
+                    <span className="text-[10px] font-bold">Points</span>
+                </button>
+                <button onClick={() => setActiveTab('EventsList')} className={`flex flex-col items-center gap-1 p-3 rounded-2xl transition-all min-w-[64px] ${activeTab === 'EventsList' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-100'}`}>
+                    <Calendar size={20} />
+                    <span className="text-[10px] font-bold">Events</span>
+                </button>
+                <button onClick={() => setActiveTab('Stats')} className={`flex flex-col items-center gap-1 p-3 rounded-2xl transition-all min-w-[64px] ${activeTab === 'Stats' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-100'}`}>
+                    <BarChart3 size={20} />
+                    <span className="text-[10px] font-bold">Stats</span>
+                </button>
+                <button onClick={() => setActiveTab('Users')} className={`flex flex-col items-center gap-1 p-3 rounded-2xl transition-all min-w-[64px] ${activeTab === 'Users' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-100'}`}>
                     <Users size={20} />
                     <span className="text-[10px] font-bold">Users</span>
                 </button>
