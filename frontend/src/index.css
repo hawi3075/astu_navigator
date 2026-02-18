@@ -1,21 +1,52 @@
 @import "tailwindcss";
 
 @theme {
-  /* Only define the keyframes here */
+  /* Keyframes for the navigation line */
   @keyframes path-pulse {
     0%, 100% { opacity: 0.4; stroke-dashoffset: 0; }
     50% { opacity: 1; stroke-dashoffset: 10; }
   }
 }
 
-/* Define the class OUTSIDE of the @theme block */
+/* Global Reset: Critical for full-screen map apps */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden; /* Prevents global page scrolling */
+  background-color: #f1f5f9; /* Slate 100 */
+}
+
+/* Define the animation class */
 .animate-path {
   animation: path-pulse 2s infinite ease-in-out;
 }
 
-/* Ensure the map container takes full height */
+/* Map Container Styling */
 #map, .leaflet-container {
   height: 100%;
   width: 100%;
-  border-radius: 40px; /* Matches your professional UI style */
+  border-radius: 40px; 
+  z-index: 1; /* Keeps map below the floating labels */
+}
+
+/* Custom Scrollbar for the Chat area */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+/* Fix for Leaflet popups to match your UI */
+.leaflet-popup-content-wrapper {
+  border-radius: 16px;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
 }

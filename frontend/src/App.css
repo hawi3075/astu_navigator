@@ -1,42 +1,50 @@
+/* Reset the default margins and paddings for a full-screen app */
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100vh; /* Critical for keeping input box at the bottom */
+  overflow: hidden;
+  background-color: #f1f5f9; /* Slate 100 */
+}
+
+/* Remove the center alignment and max-width that was breaking your map */
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  text-align: left;
+  max-width: 100%;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Custom Scrollbar for your Chat Sidebar */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* Slate 300 */
+  border-radius: 10px;
 }
 
-.card {
-  padding: 2em;
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* Slate 400 */
 }
 
-.read-the-docs {
-  color: #888;
+/* Leaflet Popup Styling */
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  padding: 5px;
+}
+
+.leaflet-container {
+  font-family: inherit;
 }
