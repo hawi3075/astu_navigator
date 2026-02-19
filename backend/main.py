@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from motor.motor_asyncio import AsyncIOMotorClient
 from groq import Groq
+from thefuzz import process  # ✅ Added for misspelling support
 import uvicorn
 
 # 1. Load Environment Variables
@@ -12,7 +13,7 @@ load_dotenv()
 
 app = FastAPI()
 
-# 🛡️ CORS setup: Essential for React frontend communication
+# 🛡️ CORS setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -46,11 +47,10 @@ class SaveLocationRequest(BaseModel):
     user_email: EmailStr
     location_name: str
 
-# --- 🚀 Campus Hub Routes ---
+# --- 🚀 Campus Hub Routes (Events & Clubs) ---
 
 @app.get("/api/events")
 async def get_all_events():
-    """Fetches events for Campus.jsx."""
     events = await db.events.find().to_list(length=100)
     for e in events:
         e["_id"] = str(e["_id"])
@@ -58,7 +58,6 @@ async def get_all_events():
 
 @app.get("/api/clubs")
 async def get_all_clubs():
-    """Fetches clubs for Campus.jsx."""
     clubs = await db.clubs.find().to_list(length=100)
     for c in clubs:
         c["_id"] = str(c["_id"])
@@ -68,7 +67,6 @@ async def get_all_clubs():
 
 @app.get("/api/admin/locations_list")
 async def get_all_locations():
-    """Provides all map markers."""
     locs = await db.locations.find().to_list(length=100)
     for l in locs:
         l["_id"] = str(l["_id"])
@@ -76,7 +74,6 @@ async def get_all_locations():
 
 @app.post("/api/save-location")
 async def save_location(request: SaveLocationRequest):
-    """Saves a building to favorites."""
     existing = await db.saved_locations.find_one({
         "user_email": request.user_email, 
         "location_name": request.location_name
@@ -88,7 +85,6 @@ async def save_location(request: SaveLocationRequest):
 
 @app.get("/api/saved-locations/{email}")
 async def get_saved_locations(email: str):
-    """Retrieves user's saved buildings."""
     saved_docs = await db.saved_locations.find({"user_email": email}).to_list(length=100)
     names = [doc["location_name"] for doc in saved_docs]
     full_details = await db.locations.find({"name": {"$in": names}}).to_list(length=100)
@@ -123,64 +119,58 @@ async def login_user(user: LoginRequest):
         }
     }
 
-# --- 🤖 AI Navigator Route (UPDATED & FIXED) ---
+# --- 🤖 AI Navigator Route (FIXED FOR TYPOS & NORMAL CHAT) ---
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     user_msg = request.message.strip().lower()
     
-    # 1. Handle Greetings (Fixes "hi" error)
-    greetings = ["hi", "hello", "hey", "yo", "good morning", "good afternoon"]
-    if user_msg in greetings:
-        return {
-            "reply": "Hello there! I'm your ASTU Campus Assistant. How can I help you navigate today?",
-            "target": None
-        }
-
-    # 2. Get all locations from MongoDB
+    # 1. Get all locations from MongoDB
     locations = await db.locations.find({}).to_list(length=100)
     names = [loc["name"] for loc in locations]
     
-    # 3. Quick Database Search (Fixes "Oda Nabe" error)
-    # This checks if the user's message matches or contains any building name in the DB
-    found = next((l for l in locations if l["name"].lower() in user_msg or user_msg in l["name"].lower()), None)
+    # ✅ STEP 1: Fuzzy Search (Handles Typos like "noda nabe")
+    # Finds the closest match in the database
+    best_match, score = process.extractOne(user_msg, names)
     
-    if found:
+    # 70% similarity is usually enough to catch typos
+    if score > 70:
+        found = next(l for l in locations if l["name"] == best_match)
         return {
-            "reply": f"📍 I've found **{found['name']}** for you! I'm updating your map now.",
+            "reply": f"📍 I think you mean **{found['name']}**. Updating the map!",
             "target": {"lat": found["latitude"], "lng": found["longitude"], "name": found["name"]}
         }
 
-    # 4. Groq AI Logic (Fallback)
+    # ✅ STEP 2: AI Logic for Greetings and Normal Questions
     try:
         completion = gro_client.chat.completions.create(
             messages=[
                 {
                     "role": "system", 
-                    "content": f"You are the ASTU Navigator. Choose from: {names}. If the user is looking for a place, reply ONLY with the exact name. If it's a general question, answer briefly."
+                    "content": f"You are the ASTU Campus Navigator. Locations available: {names}. "
+                               "If the user asks a general question or greets you, answer naturally. "
+                               "If they look for a place, guide them."
                 },
                 {"role": "user", "content": user_msg}
             ],
             model="llama3-8b-8192",
         )
-        extracted = completion.choices[0].message.content.strip()
+        ai_reply = completion.choices[0].message.content.strip()
         
-        # Check if AI's choice exists in our database
-        ai_match = next((l for l in locations if l["name"].lower() == extracted.lower()), None)
-        
+        # Final check if AI response contains a building name
+        ai_match = next((l for l in locations if l["name"].lower() in ai_reply.lower()), None)
         if ai_match:
             return {
-                "reply": f"📍 Finding **{ai_match['name']}**. Marking it on the map.",
+                "reply": ai_reply,
                 "target": {"lat": ai_match["latitude"], "lng": ai_match["longitude"], "name": ai_match["name"]}
             }
-        else:
-            # If AI gives a general response that isn't a building name
-            return {"reply": extracted, "target": None}
+            
+        return {"reply": ai_reply, "target": None}
             
     except Exception as e:
         print(f"Groq Error: {e}")
         
-    return {"reply": "I'm sorry, I couldn't find that building in the ASTU records. Try typing 'Oda Nabe Hall'.", "target": None}
+    return {"reply": "I'm sorry, I couldn't find that place. Try typing 'Oda Nabe Hall'.", "target": None}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", port=8000, reload=True)

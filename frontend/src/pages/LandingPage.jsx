@@ -13,6 +13,7 @@ import {
   Cpu
 } from 'lucide-react';
 
+// Added authMode to the props so we can tell App.jsx which form to show
 export default function LandingPage({ onStart }) {
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
@@ -27,9 +28,17 @@ export default function LandingPage({ onStart }) {
         </div>
         
         <div className="flex items-center gap-8">
-          <button onClick={onStart} className="hidden md:block text-sm font-bold text-slate-500 hover:text-blue-600 uppercase tracking-widest transition-colors">Sign In</button>
+          {/* ✅ CLICKING SIGN IN GOES TO REGISTER */}
           <button 
-            onClick={onStart}
+            onClick={() => onStart('register')} 
+            className="hidden md:block text-sm font-bold text-slate-500 hover:text-blue-600 uppercase tracking-widest transition-colors"
+          >
+            Sign In
+          </button>
+
+          {/* ✅ CLICKING JOIN NOW GOES TO LOGIN */}
+          <button 
+            onClick={() => onStart('login')}
             className="bg-blue-600 text-white px-8 py-2.5 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl active:scale-95"
           >
             Join Now
@@ -44,7 +53,6 @@ export default function LandingPage({ onStart }) {
           alt="ASTU Main Gate" 
           className="absolute inset-0 w-full h-full object-cover z-0"
         />
-        {/* Deep gradient for text readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/30 to-slate-900/90 z-10"></div>
         
         <div className="relative z-20 text-center px-6 max-w-7xl">
@@ -62,7 +70,7 @@ export default function LandingPage({ onStart }) {
           </p>
 
           <button 
-            onClick={onStart}
+            onClick={() => onStart('login')}
             className="mx-auto bg-blue-600 text-white px-12 py-6 rounded-full font-black text-sm uppercase tracking-[0.3em] flex items-center gap-4 hover:bg-white hover:text-blue-600 transition-all shadow-[0_20px_50px_rgba(37,99,235,0.4)] active:scale-95 group"
           >
             Start Exploring <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
@@ -112,7 +120,7 @@ export default function LandingPage({ onStart }) {
         </div>
       </section>
 
-      {/* 4. CONTACT SECTION - Light Gray for fitness */}
+      {/* 4. CONTACT SECTION */}
       <section className="py-24 px-8 lg:px-20 bg-slate-50 border-t border-slate-100 text-slate-900">
         <div className="max-w-7xl mx-auto">
           <div className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -140,7 +148,7 @@ export default function LandingPage({ onStart }) {
         </div>
       </section>
 
-      {/* 5. SEPARATE BOTTOM FOOTER - Distinct from contact area */}
+      {/* 5. SEPARATE BOTTOM FOOTER */}
       <footer className="py-16 px-8 lg:px-20 bg-slate-100 border-t border-slate-200">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
           <div className="flex items-center gap-2 grayscale opacity-60 hover:opacity-100 transition-opacity">
@@ -166,7 +174,6 @@ export default function LandingPage({ onStart }) {
   );
 }
 
-// UI HELPER COMPONENTS
 const FeatureBox = ({ icon: Icon, title, desc }) => (
   <div className="p-10 rounded-[40px] bg-white border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all group">
     <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-blue-100">
