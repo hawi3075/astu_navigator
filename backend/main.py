@@ -46,14 +46,11 @@ class SaveLocationRequest(BaseModel):
     user_email: EmailStr
     location_name: str
 
-# --- 🚀 NEW: Campus Hub Routes (Fixes 404 Errors) ---
+# --- 🚀 Campus Hub Routes ---
 
 @app.get("/api/events")
 async def get_all_events():
-    """
-    FIX: Provides events list to Campus.jsx.
-    Fetches from the 'events' collection in MongoDB.
-    """
+    """Fetches events for Campus.jsx."""
     events = await db.events.find().to_list(length=100)
     for e in events:
         e["_id"] = str(e["_id"])
@@ -61,10 +58,7 @@ async def get_all_events():
 
 @app.get("/api/clubs")
 async def get_all_clubs():
-    """
-    FIX: Provides clubs list to Campus.jsx.
-    Fetches from the 'clubs' collection in MongoDB.
-    """
+    """Fetches clubs for Campus.jsx."""
     clubs = await db.clubs.find().to_list(length=100)
     for c in clubs:
         c["_id"] = str(c["_id"])
@@ -74,7 +68,7 @@ async def get_all_clubs():
 
 @app.get("/api/admin/locations_list")
 async def get_all_locations():
-    """Provides markers to MapPage.jsx."""
+    """Provides all map markers."""
     locs = await db.locations.find().to_list(length=100)
     for l in locs:
         l["_id"] = str(l["_id"])
@@ -82,7 +76,7 @@ async def get_all_locations():
 
 @app.post("/api/save-location")
 async def save_location(request: SaveLocationRequest):
-    """Saves a building to the user's favorite list."""
+    """Saves a building to favorites."""
     existing = await db.saved_locations.find_one({
         "user_email": request.user_email, 
         "location_name": request.location_name
@@ -94,7 +88,7 @@ async def save_location(request: SaveLocationRequest):
 
 @app.get("/api/saved-locations/{email}")
 async def get_saved_locations(email: str):
-    """Retrieves all buildings saved by a specific user."""
+    """Retrieves user's saved buildings."""
     saved_docs = await db.saved_locations.find({"user_email": email}).to_list(length=100)
     names = [doc["location_name"] for doc in saved_docs]
     full_details = await db.locations.find({"name": {"$in": names}}).to_list(length=100)
@@ -129,34 +123,64 @@ async def login_user(user: LoginRequest):
         }
     }
 
-# --- 🤖 AI Navigator Route ---
+# --- 🤖 AI Navigator Route (UPDATED & FIXED) ---
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
-    user_msg = request.message.strip()
+    user_msg = request.message.strip().lower()
+    
+    # 1. Handle Greetings (Fixes "hi" error)
+    greetings = ["hi", "hello", "hey", "yo", "good morning", "good afternoon"]
+    if user_msg in greetings:
+        return {
+            "reply": "Hello there! I'm your ASTU Campus Assistant. How can I help you navigate today?",
+            "target": None
+        }
+
+    # 2. Get all locations from MongoDB
     locations = await db.locations.find({}).to_list(length=100)
     names = [loc["name"] for loc in locations]
     
+    # 3. Quick Database Search (Fixes "Oda Nabe" error)
+    # This checks if the user's message matches or contains any building name in the DB
+    found = next((l for l in locations if l["name"].lower() in user_msg or user_msg in l["name"].lower()), None)
+    
+    if found:
+        return {
+            "reply": f"📍 I've found **{found['name']}** for you! I'm updating your map now.",
+            "target": {"lat": found["latitude"], "lng": found["longitude"], "name": found["name"]}
+        }
+
+    # 4. Groq AI Logic (Fallback)
     try:
         completion = gro_client.chat.completions.create(
             messages=[
-                {"role": "system", "content": f"ASTU Navigator. Choose from: {names}. Reply ONLY with name."},
+                {
+                    "role": "system", 
+                    "content": f"You are the ASTU Navigator. Choose from: {names}. If the user is looking for a place, reply ONLY with the exact name. If it's a general question, answer briefly."
+                },
                 {"role": "user", "content": user_msg}
             ],
             model="llama3-8b-8192",
         )
         extracted = completion.choices[0].message.content.strip()
-        found = next((l for l in locations if l["name"].lower() == extracted.lower()), None)
         
-        if found:
+        # Check if AI's choice exists in our database
+        ai_match = next((l for l in locations if l["name"].lower() == extracted.lower()), None)
+        
+        if ai_match:
             return {
-                "reply": f"📍 Found {found['name']}! Updating map.",
-                "target": {"lat": found["latitude"], "lng": found["longitude"], "name": found["name"]}
+                "reply": f"📍 Finding **{ai_match['name']}**. Marking it on the map.",
+                "target": {"lat": ai_match["latitude"], "lng": ai_match["longitude"], "name": ai_match["name"]}
             }
+        else:
+            # If AI gives a general response that isn't a building name
+            return {"reply": extracted, "target": None}
+            
     except Exception as e:
         print(f"Groq Error: {e}")
         
-    return {"reply": "I couldn't find that building.", "target": None}
+    return {"reply": "I'm sorry, I couldn't find that building in the ASTU records. Try typing 'Oda Nabe Hall'.", "target": None}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", port=8000, reload=True)

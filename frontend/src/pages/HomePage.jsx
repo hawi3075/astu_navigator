@@ -1,57 +1,94 @@
 import React from 'react';
-import { Map, Bookmark, User, Bell, ChevronRight, GraduationCap } from 'lucide-react';
+import { Map, Bookmark, User, Bell, LayoutGrid, ChevronRight } from 'lucide-react';
 
-const HomePage = ({ onNavigate }) => {
-  const userName = localStorage.getItem("userName") || "hawi";
-
+const HomePage = ({ userName = "hawi", onNavigate }) => {
   const menuItems = [
-    { id: 'Campus', title: 'Explore Campus', desc: 'Interactive Map & AI Chat', icon: <Map className="text-blue-600" />, color: 'bg-blue-50' },
-    { id: 'Events', title: 'Campus Life', desc: 'Events & Student Clubs', icon: <GraduationCap className="text-purple-600" />, color: 'bg-purple-50' },
-    { id: 'Saved', title: 'Saved Spots', desc: 'Your favorite buildings', icon: <Bookmark className="text-emerald-600" />, color: 'bg-emerald-50' },
-    { id: 'Profile', title: 'Account Profile', desc: 'Manage your settings', icon: <User className="text-pink-600" />, color: 'bg-pink-50' },
+    {
+      id: 'map',
+      title: "Explore Campus",
+      subtitle: "Interactive Map & AI Chat",
+      icon: <Map className="text-blue-500" size={24} />,
+      // ✅ Now redirects correctly to your Map & Chat page
+      action: () => onNavigate('Map') 
+    },
+    {
+      id: 'campus',
+      title: "Campus Life",
+      subtitle: "Events & Student Clubs",
+      icon: <LayoutGrid className="text-purple-500" size={24} />, 
+      // ✅ Now redirects correctly to the Events/Clubs Hub
+      action: () => onNavigate('Campus')
+    },
+    {
+      id: 'saved',
+      title: "Saved Spots",
+      subtitle: "Your favorite buildings",
+      icon: <Bookmark className="text-emerald-500" size={24} />,
+      action: () => onNavigate('Saved')
+    },
+    {
+      id: 'profile',
+      title: "Account Profile",
+      subtitle: "Manage your settings",
+      icon: <User className="text-pink-500" size={24} />,
+      action: () => onNavigate('Profile')
+    }
   ];
 
   return (
-    <div className="min-h-screen bg-white pb-32">
-      {/* Blue Header */}
-      <div className="bg-blue-600 p-10 rounded-b-[3.5rem] text-white shadow-xl relative overflow-hidden">
-        <div className="relative z-10">
-          <h1 className="text-xl font-medium opacity-90">Welcome back,</h1>
-          <p className="text-4xl font-black mt-1">
-            {userName} <span className="inline-block animate-bounce">👋</span>
-          </p>
+    <div className="min-h-screen bg-slate-50 flex flex-col relative overflow-hidden">
+      
+      {/* --- HEADER --- */}
+      <div className="bg-blue-600 pt-12 pb-10 px-8 rounded-b-[2.5rem] shadow-lg z-0">
+        <div className="max-w-md mx-auto flex justify-between items-center">
+          <div className="animate-in fade-in slide-in-from-top-2">
+            <h1 className="text-white/70 text-[10px] font-black uppercase tracking-[0.2em]">Welcome back,</h1>
+            <div className="flex items-center gap-2">
+              <span className="text-white text-4xl font-black lowercase tracking-tighter">
+                {userName}
+              </span>
+              <span className="text-3xl animate-pulse">👋</span>
+            </div>
+          </div>
+          <button className="bg-white/10 p-3 rounded-2xl backdrop-blur-md text-white hover:bg-white/20 transition-all border border-white/10">
+            <Bell size={20} />
+          </button>
         </div>
-        {/* Decorative Circle */}
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
       </div>
 
-      {/* Navigation Cards */}
-      <div className="px-6 -mt-10 space-y-4 relative z-20">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => {
-               if (typeof onNavigate === 'function') {
-                 onNavigate(item.id);
-               }
-            }}
-            className="w-full bg-white p-6 rounded-[2.5rem] shadow-lg shadow-slate-200/50 border border-slate-50 flex items-center justify-between group active:scale-95 transition-all"
-          >
-            <div className="flex items-center gap-5">
-              <div className={`${item.color} p-4 rounded-2xl group-hover:scale-110 transition-transform`}>
-                {item.icon}
+      {/* --- MENU SECTION --- */}
+      <div className="flex-1 px-6 pt-8 z-10">
+        <div className="max-w-md mx-auto space-y-4 pb-36">
+          {menuItems.map((item, index) => (
+            <button
+              key={item.id}
+              onClick={(e) => {
+                e.preventDefault();
+                item.action();
+              }}
+              className="w-full bg-white p-6 rounded-[2.2rem] shadow-xl shadow-slate-200/50 border border-slate-100 flex items-center justify-between group hover:border-blue-200 transition-all active:scale-[0.96]"
+            >
+              <div className="flex items-center gap-5">
+                <div className="p-4 bg-slate-50 rounded-[1.4rem] group-hover:bg-blue-50 transition-all">
+                  {item.icon}
+                </div>
+                <div className="text-left">
+                  <h3 className="text-slate-800 text-lg font-black tracking-tight leading-none">
+                    {item.title}
+                  </h3>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2 italic">
+                    {item.subtitle}
+                  </p>
+                </div>
               </div>
-              <div className="text-left">
-                <h3 className="text-lg font-bold text-slate-800">{item.title}</h3>
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-tight">{item.desc}</p>
+              <div className="p-2 text-slate-200 group-hover:text-blue-600 group-hover:translate-x-1 transition-all">
+                <ChevronRight size={22} strokeWidth={3} />
               </div>
-            </div>
-            <div className="bg-slate-50 p-2 rounded-full text-slate-300 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-              <ChevronRight size={20} />
-            </div>
-          </button>
-        ))}
+            </button>
+          ))}
+        </div>
       </div>
+      
     </div>
   );
 };

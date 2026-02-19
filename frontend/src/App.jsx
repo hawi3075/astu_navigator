@@ -6,8 +6,8 @@ import HomePage from './pages/HomePage';
 import MapPage from './pages/MapPage';
 import SavedPage from './pages/SavedPage';
 import ProfilePage from './pages/ProfilePage';
-import Campus from './pages/Campus';
-import Navbar from './components/Navbar';
+import Campus from './pages/Campus'; // This is your Campus Hub (Events/Clubs)
+import Navbar from './components/NavBar';
 
 function App() {
   const [currentStep, setCurrentStep] = useState('Landing'); 
@@ -29,7 +29,6 @@ function App() {
     setActiveTab('Home');
   };
 
-  // ✅ AUTH FLOW: Fixes the issue where Register/Login wouldn't show
   if (!isLoggedIn) {
     if (currentStep === 'Landing') {
       return <LandingPage onStart={() => setCurrentStep('Login')} />;
@@ -47,23 +46,37 @@ function App() {
     }
   }
 
-  // ✅ DASHBOARD: Fixes the "onNavigate is not a function" error
+  // ✅ FIXED ROUTING LOGIC
   const renderPage = () => {
     switch (activeTab) {
-      case 'Home': return <HomePage onNavigate={setActiveTab} />;
-      case 'Campus': return <MapPage onNavigate={setActiveTab} />;
-      case 'Events': return <Campus onNavigate={setActiveTab} />;
-      case 'Saved': return <SavedPage onNavigate={setActiveTab} />;
-      case 'Profile': return <ProfilePage onNavigate={setActiveTab} onLogout={handleLogout} />;
-      default: return <HomePage onNavigate={setActiveTab} />;
+      case 'Home': 
+        return <HomePage onNavigate={setActiveTab} />;
+      
+      // ✅ "Explore Campus" card now triggers this case
+      case 'Map': 
+        return <MapPage onNavigate={setActiveTab} />; 
+      
+      // ✅ "Campus Life" card and Navbar icon now trigger this case
+      case 'Campus': 
+        return <Campus onNavigate={setActiveTab} />; 
+      
+      case 'Saved': 
+        return <SavedPage onNavigate={setActiveTab} />;
+      
+      case 'Profile': 
+        return <ProfilePage onNavigate={setActiveTab} onLogout={handleLogout} />;
+      
+      default: 
+        return <HomePage onNavigate={setActiveTab} />;
     }
   };
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-white">
-      <div className="flex-1 overflow-y-auto pb-20">
+      <div className="flex-1 overflow-y-auto">
         {renderPage()}
       </div>
+      {/* Navbar stays fixed at the bottom */}
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );
