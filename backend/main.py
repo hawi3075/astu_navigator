@@ -13,7 +13,7 @@ load_dotenv()
 
 app = FastAPI()
 
-# 🛡️ CORS setup
+# 🛡️ CORS setup - Critical for React to talk to FastAPI
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -38,6 +38,7 @@ class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
+    role: str = "user"  # ✅ Default role is user
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -109,17 +110,19 @@ async def register_user(user: RegisterRequest):
 @app.post("/api/login")
 async def login_user(user: LoginRequest):
     db_user = await db.users.find_one({"email": user.email})
+    
+    # ⚠️ Check if user exists and password matches
     if not db_user or db_user["password"] != user.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
+    # ✅ Return role so App.jsx knows whether to show Admin or Student dashboard
     return {
-        "user": {
-            "full_name": db_user["name"], 
-            "email": db_user["email"]
-        }
+        "full_name": db_user["name"], 
+        "email": db_user["email"],
+        "role": db_user.get("role", "user") #
     }
 
-# --- 🤖 AI Navigator Route (FIXED FOR TYPOS & NORMAL CHAT) ---
+# --- 🤖 AI Navigator Route ---
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
@@ -129,11 +132,9 @@ async def chat_endpoint(request: ChatRequest):
     locations = await db.locations.find({}).to_list(length=100)
     names = [loc["name"] for loc in locations]
     
-    # ✅ STEP 1: Fuzzy Search (Handles Typos like "noda nabe")
-    # Finds the closest match in the database
+    # ✅ STEP 1: Fuzzy Search (Handles Typos)
     best_match, score = process.extractOne(user_msg, names)
     
-    # 70% similarity is usually enough to catch typos
     if score > 70:
         found = next(l for l in locations if l["name"] == best_match)
         return {
@@ -148,8 +149,7 @@ async def chat_endpoint(request: ChatRequest):
                 {
                     "role": "system", 
                     "content": f"You are the ASTU Campus Navigator. Locations available: {names}. "
-                               "If the user asks a general question or greets you, answer naturally. "
-                               "If they look for a place, guide them."
+                               "Answer naturally to greetings. If they look for a place, guide them."
                 },
                 {"role": "user", "content": user_msg}
             ],
@@ -157,7 +157,7 @@ async def chat_endpoint(request: ChatRequest):
         )
         ai_reply = completion.choices[0].message.content.strip()
         
-        # Final check if AI response contains a building name
+        # Check if AI response mentions a known building
         ai_match = next((l for l in locations if l["name"].lower() in ai_reply.lower()), None)
         if ai_match:
             return {
