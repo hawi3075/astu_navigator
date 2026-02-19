@@ -46,11 +46,35 @@ class SaveLocationRequest(BaseModel):
     user_email: EmailStr
     location_name: str
 
+# --- 🚀 NEW: Campus Hub Routes (Fixes 404 Errors) ---
+
+@app.get("/api/events")
+async def get_all_events():
+    """
+    FIX: Provides events list to Campus.jsx.
+    Fetches from the 'events' collection in MongoDB.
+    """
+    events = await db.events.find().to_list(length=100)
+    for e in events:
+        e["_id"] = str(e["_id"])
+    return events
+
+@app.get("/api/clubs")
+async def get_all_clubs():
+    """
+    FIX: Provides clubs list to Campus.jsx.
+    Fetches from the 'clubs' collection in MongoDB.
+    """
+    clubs = await db.clubs.find().to_list(length=100)
+    for c in clubs:
+        c["_id"] = str(c["_id"])
+    return clubs
+
 # --- 📍 Map & Location Routes ---
 
 @app.get("/api/admin/locations_list")
 async def get_all_locations():
-    """FIX: Provides markers to MapPage.jsx to stop 404 errors."""
+    """Provides markers to MapPage.jsx."""
     locs = await db.locations.find().to_list(length=100)
     for l in locs:
         l["_id"] = str(l["_id"])
@@ -73,7 +97,6 @@ async def get_saved_locations(email: str):
     """Retrieves all buildings saved by a specific user."""
     saved_docs = await db.saved_locations.find({"user_email": email}).to_list(length=100)
     names = [doc["location_name"] for doc in saved_docs]
-    # Fetch full data (lat/lng) for the names saved
     full_details = await db.locations.find({"name": {"$in": names}}).to_list(length=100)
     for loc in full_details:
         loc["_id"] = str(loc["_id"])
@@ -99,7 +122,6 @@ async def login_user(user: LoginRequest):
     if not db_user or db_user["password"] != user.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # FIX: Returning 'full_name' fixes 'undefined' on Profile/Home pages
     return {
         "user": {
             "full_name": db_user["name"], 
@@ -111,7 +133,6 @@ async def login_user(user: LoginRequest):
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
-    """Uses Groq to find buildings mentioned in user chat messages."""
     user_msg = request.message.strip()
     locations = await db.locations.find({}).to_list(length=100)
     names = [loc["name"] for loc in locations]
