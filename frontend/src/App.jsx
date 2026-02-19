@@ -8,6 +8,7 @@ import SavedPage from './pages/SavedPage';
 import ProfilePage from './pages/ProfilePage';
 import Campus from './pages/Campus'; 
 import Navbar from './components/NavBar';
+// Corrected path to your new admin folder structure
 import AdminDashboard from './pages/admin/AdminDashboard'; 
 
 function App() {
@@ -43,8 +44,7 @@ function App() {
   if (isLoading) return null;
 
   // ✅ 1. Auth Traffic Control
-  // Returning the auth pages directly ensures they aren't trapped 
-  // inside the restricted layout of the main App wrapper.
+  // We return these directly so they aren't affected by the App's main CSS wrapper
   if (!isLoggedIn) {
     if (currentStep === 'Login') {
       return (
@@ -63,6 +63,7 @@ function App() {
     if (currentStep === 'Register') {
       return <RegisterPage onNavigateToLogin={() => setCurrentStep('Login')} />;
     }
+    // This now allows the full LandingPage (Hero + Contact + Footer) to scroll naturally
     return (
       <LandingPage 
         onStart={(mode) => mode === 'register' ? setCurrentStep('Register') : setCurrentStep('Login')} 
@@ -88,15 +89,11 @@ function App() {
   };
 
   return (
-    /* ✅ Fixed: 'h-screen' and 'overflow-hidden' are only applied when logged in 
-       to prevent breaking the scrolling on long landing/auth pages. */
-    <div className="flex flex-col min-h-screen bg-white font-sans overflow-x-hidden">
-      <div className={`flex-1 ${isLoggedIn ? 'h-screen overflow-hidden' : ''}`}>
-        <div className={isLoggedIn ? "h-full overflow-y-auto" : ""}>
-          {renderPage()}
-        </div>
+    /* ✅ This layout is specific for the Logged-In User Experience */
+    <div className="flex flex-col h-screen overflow-hidden bg-white font-sans">
+      <div className="flex-1 overflow-y-auto">
+        {renderPage()}
       </div>
-      {/* Ensure Navbar only shows for regular users */}
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );
