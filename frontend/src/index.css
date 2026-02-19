@@ -18,7 +18,61 @@ html, body, #root {
   background-color: #f1f5f9; /* Slate 100 */
 }
 
-/* Define the animation class */
+/* --- Campus & List View Styles --- */
+
+/* Allow the Campus page to scroll if the list is long */
+.campus-page, .detail-view {
+  height: 100%;
+  overflow-y: auto; 
+  padding: 20px;
+  padding-bottom: 100px; /* Space for bottom navigation */
+}
+
+.item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  margin: 15px 0;
+  padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  text-align: left;
+}
+
+.nav-btn {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 15px;
+  font-weight: 600;
+  transition: background 0.3s;
+}
+
+.nav-btn:hover {
+  background-color: #2563eb;
+}
+
+.action-btn {
+  background-color: #10b981; /* Green for 'Join' actions */
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.action-btn:hover {
+  opacity: 0.9;
+}
+
+/* --- Map & Animation Styles --- */
+
 .animate-path {
   animation: path-pulse 2s infinite ease-in-out;
 }
@@ -28,19 +82,23 @@ html, body, #root {
   height: 100%;
   width: 100%;
   border-radius: 40px; 
-  z-index: 1; /* Keeps map below the floating labels */
+  z-index: 1; /* Keeps map below floating labels */
 }
 
-/* Custom Scrollbar for the Chat area */
-.overflow-y-auto::-webkit-scrollbar {
+/* Custom Scrollbar for the Chat area and Campus Lists */
+.overflow-y-auto::-webkit-scrollbar, 
+.campus-page::-webkit-scrollbar, 
+.detail-view::-webkit-scrollbar {
   width: 6px;
 }
 
-.overflow-y-auto::-webkit-scrollbar-track {
+.overflow-y-auto::-webkit-scrollbar-track,
+.campus-page::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.overflow-y-auto::-webkit-scrollbar-thumb {
+.overflow-y-auto::-webkit-scrollbar-thumb,
+.campus-page::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 10px;
 }

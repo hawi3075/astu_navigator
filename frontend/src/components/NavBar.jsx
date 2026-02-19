@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, MapPin, Bookmark, Settings } from 'lucide-react';
+import { Home, MapPin, Bookmark, User } from 'lucide-react';
 
 const NavItem = ({ icon, label, active, onClick }) => (
   <button 
@@ -19,7 +19,8 @@ export default function Navbar({ activeTab, setActiveTab }) {
       <NavItem icon={<Home size={20}/>} label="Home" active={activeTab === 'Home'} onClick={setActiveTab} />
       <NavItem icon={<MapPin size={20}/>} label="Campus" active={activeTab === 'Campus'} onClick={setActiveTab} />
       <NavItem icon={<Bookmark size={20}/>} label="Saved" active={activeTab === 'Saved'} onClick={setActiveTab} />
-      <NavItem icon={<Settings size={20}/>} label="Settings" active={activeTab === 'Settings'} onClick={setActiveTab} />
+      {/* Label changed to Profile and icon changed to User */}
+      <NavItem icon={<User size={20}/>} label="Profile" active={activeTab === 'Profile'} onClick={setActiveTab} />
     </div>
   );
 }

@@ -48,3 +48,42 @@ html, body, #root {
 .leaflet-container {
   font-family: inherit;
 }
+/* --- Add this to App.css to fix the Campus layout --- */
+.campus-page {
+  padding: 40px;
+  text-align: center;
+}
+
+.card-container {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 40px;
+}
+
+.campus-card {
+  background: white;
+  padding: 30px;
+  border-radius: 40px; /* Matching your original design */
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+  width: 320px;
+  transition: transform 0.3s ease;
+}
+
+.campus-card:hover {
+  transform: translateY(-10px);
+}
+
+.icon-circle {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 24px;
+}
+
+.event-blue { background: #eff6ff; color: #3b82f6; }
+.club-purple { background: #faf5ff; color: #a855f7; }

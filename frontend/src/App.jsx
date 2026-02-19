@@ -3,11 +3,11 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import MapPage from './pages/MapPage';
-import CampusPage from './pages/CampusPage';
 import SavedPage from './pages/SavedPage';
-import SettingsPage from './pages/SettingsPage';
+import ProfilePage from './pages/ProfilePage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Navbar from './components/Navbar';
+import CampusPage from './pages/Campus'; // Cleaned up double imports here
 
 function App() {
   const [screen, setScreen] = useState('landing'); 
@@ -28,7 +28,6 @@ function App() {
 
   if (screen === 'register') return <RegisterPage onBackToLogin={() => setScreen('login')} />;
 
-  // 🛡️ Admin Screen: Shows the dashboard you built
   if (screen === 'admin') {
     return <AdminDashboard onLogout={() => setScreen('login')} />;
   }
@@ -36,18 +35,23 @@ function App() {
   // User Dashboard Flow
   const renderContent = () => {
     switch (activeTab) {
-      case 'Home': return <MapPage />;
-      case 'Campus': return <CampusPage />;
-      case 'Saved': return <SavedPage />;
-      case 'Settings': return <SettingsPage />;
-      default: return <MapPage />;
+      case 'Home': 
+        return <MapPage />;
+      case 'Campus': 
+        return <CampusPage />;
+      case 'Saved': 
+        return <SavedPage />;
+      case 'Profile': // ✅ FIXED: Matches the label in your Navbar.jsx
+        return <ProfilePage />;
+      default: 
+        return <MapPage />;
     }
   };
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-white">
       {renderContent()}
-      {/* Navbar only for regular users */}
+      {/* Navbar will now correctly trigger 'Profile' case */}
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );

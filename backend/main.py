@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -37,6 +37,7 @@ class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
+    role: str = "student"
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -53,10 +54,14 @@ class ClubRequest(BaseModel):
     category: str
     description: str
 
+# ✅ NEW MODEL: Saved Location
+class SaveLocationRequest(BaseModel):
+    user_email: EmailStr
+    location_name: str
+
 # --- 🚀 AUTOMATIC DATABASE SEEDING ---
 @app.on_event("startup")
 async def seed_data():
-    """Ensures the database is populated with campus locations on start."""
     count = await db.locations.count_documents({})
     if count < 10:
         print("💾 Seeding database...")
@@ -84,7 +89,8 @@ async def register_user(user: RegisterRequest):
     existing_user = await db.users.find_one({"email": user.email})
     if existing_user:
         raise HTTPException(status_code=400, detail="User already exists")
-    await db.users.insert_one(user.model_dump())
+    user_data = user.model_dump()
+    await db.users.insert_one(user_data)
     return {"message": "Registration Successful!"}
 
 @app.post("/api/login")
@@ -92,10 +98,56 @@ async def login_user(user: LoginRequest):
     db_user = await db.users.find_one({"email": user.email})
     if not db_user or db_user["password"] != user.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    return {"user": {"name": db_user["name"], "email": db_user["email"]}}
+    
+    return {
+        "user": {
+            "full_name": db_user["name"], 
+            "email": db_user["email"],
+            "role": db_user.get("role", "student")
+        }
+    }
 
-# --- 📅 CAMPUS DATA ROUTES (Events, Clubs, Blocks) ---
+# --- 📍 NEW: SAVED LOCATIONS ROUTES ---
 
+@app.post("/api/save-location")
+async def save_location(request: SaveLocationRequest):
+    """Saves a building to the user's favorites list."""
+    existing = await db.saved_locations.find_one({
+        "user_email": request.user_email, 
+        "location_name": request.location_name
+    })
+    if existing:
+        return {"message": "Location already saved"}
+    
+    await db.saved_locations.insert_one(request.model_dump())
+    return {"message": "Location saved successfully!"}
+
+@app.get("/api/saved-locations/{email}")
+async def get_saved_locations(email: str):
+    """Retrieves all buildings saved by a specific user."""
+    saved_cursor = db.saved_locations.find({"user_email": email})
+    saved_docs = await saved_cursor.to_list(length=100)
+    
+    # Get the building names the user saved
+    saved_names = [doc["location_name"] for doc in saved_docs]
+    
+    # Fetch full details (lat, lng, category) for these names from the locations collection
+    full_details = await db.locations.find({"name": {"$in": saved_names}}).to_list(length=100)
+    
+    for loc in full_details:
+        loc["_id"] = str(loc["_id"])
+    return full_details
+
+@app.delete("/api/save-location")
+async def unsave_location(email: str = Query(...), location_name: str = Query(...)):
+    """Removes a building from the user's favorites list."""
+    await db.saved_locations.delete_one({
+        "user_email": email, 
+        "location_name": location_name
+    })
+    return {"message": "Removed from saved locations"}
+
+# --- 📅 CAMPUS DATA ROUTES ---
 @app.get("/api/events")
 async def get_events():
     events = await db.events.find().to_list(length=100)
@@ -120,20 +172,11 @@ async def add_club(club: ClubRequest):
 
 @app.get("/api/blocks")
 async def get_blocks():
-    # Specifically filters for Academic Blocks for the 'Blocks' card
     blocks = await db.locations.find({"category": "Academic Block"}).to_list(length=100)
     for b in blocks: b["_id"] = str(b["_id"])
     return blocks
 
-@app.get("/api/admin/locations_list")
-async def get_locations():
-    data = []
-    async for loc in db.locations.find():
-        loc["_id"] = str(loc["_id"])
-        data.append(loc)
-    return data
-
-# --- 🚀 SMART AI CHAT WITH GROQ ---
+# --- 🚀 SMART AI CHAT ---
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     user_msg = request.message.strip()
@@ -146,7 +189,7 @@ async def chat_endpoint(request: ChatRequest):
             messages=[
                 {
                     "role": "system",
-                    "content": f"You are a campus navigator for ASTU. Identify the building. Choose ONLY from: {location_names}. Reply with ONLY the building name. If no match, reply 'NONE'."
+                    "content": f"You are a campus navigator for ASTU. Choose ONLY from: {location_names}. Reply with ONLY the building name. If no match, reply 'NONE'."
                 },
                 {"role": "user", "content": user_msg}
             ],
@@ -163,7 +206,7 @@ async def chat_endpoint(request: ChatRequest):
     except Exception as e:
         print(f"Groq Error: {e}")
 
-    return {"reply": "I couldn't find that place. Try 'Oda Nabe' or 'Red Sea'.", "target": None}
+    return {"reply": "I couldn't find that place.", "target": None}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", port=8000, reload=True)
