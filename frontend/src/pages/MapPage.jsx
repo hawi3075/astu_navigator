@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Send, Navigation, Loader2, Sparkles, MapPin, Bookmark } from 'lucide-react'; // Added Bookmark icon
+import { Send, Navigation, Loader2, Sparkles, Bookmark, ArrowLeft } from 'lucide-react'; 
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 // --- LEAFLET ASSET FIX ---
@@ -46,7 +46,8 @@ function RecenterMap({ coords }) {
   return null;
 }
 
-export default function MapPage() {
+// ✅ FIX 1: Ensure onNavigate is accepted as a prop
+export default function MapPage({ onNavigate }) {
   const [messages, setMessages] = useState([
     { text: "Welcome to ASTU! Ask me to find any building like **Oda Nabe Hall**.", isBot: true }
   ]);
@@ -59,32 +60,31 @@ export default function MapPage() {
   useEffect(() => {
     const fetchLocs = async () => {
       try {
+        // ✅ FIX 2: Ensure your backend is running on port 8000
         const res = await axios.get('http://localhost:8000/api/admin/locations_list');
         setDbLocations(res.data);
-      } catch (err) { console.error("Backend unreachable."); }
+      } catch (err) { 
+        console.error("Backend unreachable. Ensure FastAPI is running."); 
+      }
     };
     fetchLocs();
   }, []);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  // ✅ NEW: Function to save location to MongoDB
   const handleSaveLocation = async (locationName) => {
     const userEmail = localStorage.getItem("userEmail");
-    
     if (!userEmail) {
       alert("Please log in again to save locations.");
       return;
     }
-
     try {
-      const response = await axios.post('http://localhost:8000/api/save-location', {
+      await axios.post('http://localhost:8000/api/save-location', {
         user_email: userEmail,
         location_name: locationName
       });
-      alert(response.data.message);
+      alert("Location saved to your profile!");
     } catch (err) {
-      console.error("Error saving location:", err);
       alert("Failed to save location.");
     }
   };
@@ -97,9 +97,8 @@ export default function MapPage() {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/chat', { message: userText });
+      const response = await axios.post('http://localhost:8000/api/chat', { message: userText });
       const { reply, target } = response.data;
-
       if (target) {
         setMapTarget({ coords: [target.lat, target.lng], name: target.name, category: "Target" });
       }
@@ -110,8 +109,20 @@ export default function MapPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-slate-100 overflow-hidden font-sans pb-24">
-      <div className="flex flex-1 overflow-hidden p-4 gap-4">
+    <div className="flex flex-col h-screen w-screen bg-slate-100 overflow-hidden font-sans">
+      
+      {/* ✅ FIX 3: Back to Home Header (fixes browser back button issue) */}
+      <div className="bg-white px-6 py-4 flex items-center border-b border-slate-200 sticky top-0 z-[2000]">
+        <button 
+          onClick={() => onNavigate('Home')} 
+          className="mr-4 p-2 hover:bg-slate-100 rounded-full transition-colors"
+        >
+          <ArrowLeft size={24} className="text-slate-800" />
+        </button>
+        <h2 className="text-lg font-bold text-slate-800">Campus Navigator</h2>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden p-4 gap-4 pb-24">
         
         {/* Chat Sidebar */}
         <div className="w-80 lg:w-96 flex flex-col bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden">
@@ -155,14 +166,13 @@ export default function MapPage() {
           <MapContainer center={ASTU_CENTER} zoom={16} className="h-full w-full" zoomControl={false} maxBounds={ADAMA_BOUNDS}>
             <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
             <Marker position={USER_START} icon={userIcon}><Popup>You are here</Popup></Marker>
-            <Polyline positions={[USER_START, mapTarget.coords]} pathOptions={{ color: '#3b82f6', weight: 5, dashArray: '12, 12', className: 'animate-path' }} />
+            <Polyline positions={[USER_START, mapTarget.coords]} pathOptions={{ color: '#3b82f6', weight: 5, dashArray: '12, 12' }} />
             
             {dbLocations.map((loc) => (
               <Marker key={loc._id} position={[loc.latitude, loc.longitude]} icon={getIcon(loc.category, mapTarget.name === loc.name)}>
                 <Popup>
                   <div className="p-1">
                     <p className="font-bold text-slate-800 text-sm mb-2">{loc.name}</p>
-                    {/* ✅ NEW: Bookmark button inside the popup */}
                     <button 
                       onClick={() => handleSaveLocation(loc.name)}
                       className="flex items-center gap-1 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-600 hover:text-white transition-all w-full justify-center"

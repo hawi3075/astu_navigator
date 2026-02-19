@@ -7,12 +7,12 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from groq import Groq
 import uvicorn
 
-# 1. Load secrets from .env
+# 1. Load Environment Variables
 load_dotenv()
 
 app = FastAPI()
 
-# 🛡️ CORS setup
+# 🛡️ CORS setup: Essential for React frontend communication
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,7 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 🔌 SECURE CREDENTIALS
+# 🔌 Connections
 MONGO_URI = os.getenv("MONGO_URI")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -29,7 +29,7 @@ client = AsyncIOMotorClient(MONGO_URI)
 db = client.ASTU_Nav
 gro_client = Groq(api_key=GROQ_API_KEY)
 
-# --- MODELS ---
+# --- Pydantic Models ---
 class ChatRequest(BaseModel):
     message: str
 
@@ -37,61 +37,61 @@ class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
-    role: str = "student"
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-class EventRequest(BaseModel):
-    title: str
-    date: str
-    location: str
-    description: str
-
-class ClubRequest(BaseModel):
-    name: str
-    category: str
-    description: str
-
-# ✅ NEW MODEL: Saved Location
 class SaveLocationRequest(BaseModel):
     user_email: EmailStr
     location_name: str
 
-# --- 🚀 AUTOMATIC DATABASE SEEDING ---
-@app.on_event("startup")
-async def seed_data():
-    count = await db.locations.count_documents({})
-    if count < 10:
-        print("💾 Seeding database...")
-        await db.locations.delete_many({}) 
-        all_places = [
-            {"name": "ASTU New Admin Building", "latitude": 8.56117, "longitude": 39.29024, "category": "Admin"},
-            {"name": "Oda Nabe Hall", "latitude": 8.56450, "longitude": 39.29150, "category": "Hall"},
-            {"name": "ASTU Central Library", "latitude": 8.56097, "longitude": 39.29134, "category": "Library"},
-            {"name": "Female Students Library", "latitude": 8.56050, "longitude": 39.29250, "category": "Library"},
-            {"name": "Block 304", "latitude": 8.56200, "longitude": 39.29300, "category": "Academic Block"},
-            {"name": "Red Sea Dormitory", "latitude": 8.56400, "longitude": 39.28850, "category": "Dormitory"},
-            {"name": "Kilimanjaro Dormitory", "latitude": 8.56520, "longitude": 39.28900, "category": "Dormitory"},
-            {"name": "ASTU Health Center", "latitude": 8.55950, "longitude": 39.29100, "category": "Health"},
-            {"name": "Student Cafeteria 1", "latitude": 8.56350, "longitude": 39.28950, "category": "Dining"},
-            {"name": "ICT Center", "latitude": 8.56150, "longitude": 39.29180, "category": "Academic"},
-            {"name": "Post Office", "latitude": 8.56020, "longitude": 39.29000, "category": "Service"},
-            {"name": "School of Applied Natural Sciences", "latitude": 8.56250, "longitude": 39.29050, "category": "Academic"}
-        ]
-        await db.locations.insert_many(all_places)
-        print(f"✅ Saved {len(all_places)} locations.")
+# --- 📍 Map & Location Routes ---
 
-# --- AUTH ROUTES ---
+@app.get("/api/admin/locations_list")
+async def get_all_locations():
+    """FIX: Provides markers to MapPage.jsx to stop 404 errors."""
+    locs = await db.locations.find().to_list(length=100)
+    for l in locs:
+        l["_id"] = str(l["_id"])
+    return locs
+
+@app.post("/api/save-location")
+async def save_location(request: SaveLocationRequest):
+    """Saves a building to the user's favorite list."""
+    existing = await db.saved_locations.find_one({
+        "user_email": request.user_email, 
+        "location_name": request.location_name
+    })
+    if existing:
+        return {"message": "Already saved"}
+    await db.saved_locations.insert_one(request.model_dump())
+    return {"message": "Saved successfully"}
+
+@app.get("/api/saved-locations/{email}")
+async def get_saved_locations(email: str):
+    """Retrieves all buildings saved by a specific user."""
+    saved_docs = await db.saved_locations.find({"user_email": email}).to_list(length=100)
+    names = [doc["location_name"] for doc in saved_docs]
+    # Fetch full data (lat/lng) for the names saved
+    full_details = await db.locations.find({"name": {"$in": names}}).to_list(length=100)
+    for loc in full_details:
+        loc["_id"] = str(loc["_id"])
+    return full_details
+
+@app.delete("/api/save-location")
+async def unsave_location(email: str = Query(...), location_name: str = Query(...)):
+    await db.saved_locations.delete_one({"user_email": email, "location_name": location_name})
+    return {"message": "Removed"}
+
+# --- 🔑 Authentication Routes ---
+
 @app.post("/api/register")
 async def register_user(user: RegisterRequest):
-    existing_user = await db.users.find_one({"email": user.email})
-    if existing_user:
+    if await db.users.find_one({"email": user.email}):
         raise HTTPException(status_code=400, detail="User already exists")
-    user_data = user.model_dump()
-    await db.users.insert_one(user_data)
-    return {"message": "Registration Successful!"}
+    await db.users.insert_one(user.model_dump())
+    return {"message": "Registration Successful"}
 
 @app.post("/api/login")
 async def login_user(user: LoginRequest):
@@ -99,114 +99,43 @@ async def login_user(user: LoginRequest):
     if not db_user or db_user["password"] != user.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
+    # FIX: Returning 'full_name' fixes 'undefined' on Profile/Home pages
     return {
         "user": {
             "full_name": db_user["name"], 
-            "email": db_user["email"],
-            "role": db_user.get("role", "student")
+            "email": db_user["email"]
         }
     }
 
-# --- 📍 NEW: SAVED LOCATIONS ROUTES ---
+# --- 🤖 AI Navigator Route ---
 
-@app.post("/api/save-location")
-async def save_location(request: SaveLocationRequest):
-    """Saves a building to the user's favorites list."""
-    existing = await db.saved_locations.find_one({
-        "user_email": request.user_email, 
-        "location_name": request.location_name
-    })
-    if existing:
-        return {"message": "Location already saved"}
-    
-    await db.saved_locations.insert_one(request.model_dump())
-    return {"message": "Location saved successfully!"}
-
-@app.get("/api/saved-locations/{email}")
-async def get_saved_locations(email: str):
-    """Retrieves all buildings saved by a specific user."""
-    saved_cursor = db.saved_locations.find({"user_email": email})
-    saved_docs = await saved_cursor.to_list(length=100)
-    
-    # Get the building names the user saved
-    saved_names = [doc["location_name"] for doc in saved_docs]
-    
-    # Fetch full details (lat, lng, category) for these names from the locations collection
-    full_details = await db.locations.find({"name": {"$in": saved_names}}).to_list(length=100)
-    
-    for loc in full_details:
-        loc["_id"] = str(loc["_id"])
-    return full_details
-
-@app.delete("/api/save-location")
-async def unsave_location(email: str = Query(...), location_name: str = Query(...)):
-    """Removes a building from the user's favorites list."""
-    await db.saved_locations.delete_one({
-        "user_email": email, 
-        "location_name": location_name
-    })
-    return {"message": "Removed from saved locations"}
-
-# --- 📅 CAMPUS DATA ROUTES ---
-@app.get("/api/events")
-async def get_events():
-    events = await db.events.find().to_list(length=100)
-    for e in events: e["_id"] = str(e["_id"])
-    return events
-
-@app.post("/api/admin/events")
-async def add_event(event: EventRequest):
-    await db.events.insert_one(event.model_dump())
-    return {"message": "Event created successfully!"}
-
-@app.get("/api/clubs")
-async def get_clubs():
-    clubs = await db.clubs.find().to_list(length=100)
-    for c in clubs: c["_id"] = str(c["_id"])
-    return clubs
-
-@app.post("/api/admin/clubs")
-async def add_club(club: ClubRequest):
-    await db.clubs.insert_one(club.model_dump())
-    return {"message": "Club added successfully!"}
-
-@app.get("/api/blocks")
-async def get_blocks():
-    blocks = await db.locations.find({"category": "Academic Block"}).to_list(length=100)
-    for b in blocks: b["_id"] = str(b["_id"])
-    return blocks
-
-# --- 🚀 SMART AI CHAT ---
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
+    """Uses Groq to find buildings mentioned in user chat messages."""
     user_msg = request.message.strip()
-    cursor = db.locations.find({})
-    locations = await cursor.to_list(length=100)
-    location_names = [loc["name"] for loc in locations]
+    locations = await db.locations.find({}).to_list(length=100)
+    names = [loc["name"] for loc in locations]
     
     try:
-        chat_completion = gro_client.chat.completions.create(
+        completion = gro_client.chat.completions.create(
             messages=[
-                {
-                    "role": "system",
-                    "content": f"You are a campus navigator for ASTU. Choose ONLY from: {location_names}. Reply with ONLY the building name. If no match, reply 'NONE'."
-                },
+                {"role": "system", "content": f"ASTU Navigator. Choose from: {names}. Reply ONLY with name."},
                 {"role": "user", "content": user_msg}
             ],
             model="llama3-8b-8192",
         )
-        extracted_name = chat_completion.choices[0].message.content.strip()
-        found_loc = next((loc for loc in locations if loc["name"].lower() == extracted_name.lower()), None)
-
-        if found_loc:
+        extracted = completion.choices[0].message.content.strip()
+        found = next((l for l in locations if l["name"].lower() == extracted.lower()), None)
+        
+        if found:
             return {
-                "reply": f"📍 I found **{found_loc['name']}**! Updating your map now.",
-                "target": {"lat": found_loc["latitude"], "lng": found_loc["longitude"], "name": found_loc["name"]}
+                "reply": f"📍 Found {found['name']}! Updating map.",
+                "target": {"lat": found["latitude"], "lng": found["longitude"], "name": found["name"]}
             }
     except Exception as e:
         print(f"Groq Error: {e}")
-
-    return {"reply": "I couldn't find that place.", "target": None}
+        
+    return {"reply": "I couldn't find that building.", "target": None}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", port=8000, reload=True)
