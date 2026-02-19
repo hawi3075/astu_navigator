@@ -1,24 +1,14 @@
 import React from 'react';
 import { 
-  Navigation, 
-  ArrowRight, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  MessageSquare, 
-  Globe, 
-  Zap, 
-  Shield,
-  Layers,
-  Cpu
+  Navigation, ArrowRight, Phone, Mail, MapPin, 
+  MessageSquare, Globe, Zap, Layers, Cpu 
 } from 'lucide-react';
 
-// Added authMode to the props so we can tell App.jsx which form to show
 export default function LandingPage({ onStart }) {
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
       
-      {/* 1. NAVIGATION BAR - Glassmorphism style */}
+      {/* 1. NAVIGATION BAR */}
       <nav className="fixed top-0 w-full z-[6000] backdrop-blur-md bg-white/70 border-b border-slate-100 px-8 lg:px-20 py-5 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <div className="bg-blue-600 p-1.5 rounded-lg text-white shadow-lg shadow-blue-500/30">
@@ -28,17 +18,15 @@ export default function LandingPage({ onStart }) {
         </div>
         
         <div className="flex items-center gap-8">
-          {/* ✅ CLICKING SIGN IN GOES TO REGISTER */}
           <button 
-            onClick={() => onStart('register')} 
+            onClick={() => onStart('login')} 
             className="hidden md:block text-sm font-bold text-slate-500 hover:text-blue-600 uppercase tracking-widest transition-colors"
           >
             Sign In
           </button>
 
-          {/* ✅ CLICKING JOIN NOW GOES TO LOGIN */}
           <button 
-            onClick={() => onStart('login')}
+            onClick={() => onStart('register')}
             className="bg-blue-600 text-white px-8 py-2.5 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl active:scale-95"
           >
             Join Now
@@ -46,8 +34,8 @@ export default function LandingPage({ onStart }) {
         </div>
       </nav>
 
-      {/* 2. HERO SECTION - Using /main.png.jpg */}
-      <section className="relative w-full h-screen overflow-hidden flex items-center justify-center">
+      {/* 2. HERO SECTION - FIX: Removed overflow-hidden and h-screen */}
+      <section className="relative w-full min-h-screen flex items-center justify-center pt-20">
         <img 
           src="/main.png.jpg" 
           alt="ASTU Main Gate" 
@@ -66,7 +54,7 @@ export default function LandingPage({ onStart }) {
           </h1>
           
           <p className="text-white/90 text-lg lg:text-2xl font-bold max-w-3xl mx-auto mb-12 uppercase tracking-wide leading-relaxed">
-            ASTUNav is a sophisticated spatial platform designed to help students and visitors master the Adama Science and Technology University campus through AI and live satellite data.
+            ASTUNav is a sophisticated spatial platform designed to help students and visitors master the Adama Science and Technology University campus.
           </p>
 
           <button 
@@ -87,7 +75,7 @@ export default function LandingPage({ onStart }) {
                 Bridging the gap between <br /><span className="text-blue-600">Space and Location.</span>
               </h2>
               <p className="text-slate-600 text-lg font-medium leading-relaxed">
-                Adama Science and Technology University is a hub of vast infrastructure. ASTUNav was developed to solve the "last-mile" navigation problem—helping you find not just the building, but the specific office or laboratory you need.
+                ASTUNav was developed to solve the "last-mile" navigation problem—helping you find specific offices and laboratories across the vast ASTU infrastructure.
               </p>
               
               <div className="grid grid-cols-2 gap-4">
@@ -108,12 +96,12 @@ export default function LandingPage({ onStart }) {
                <FeatureBox 
                   icon={MessageSquare} 
                   title="Semantic AI Search" 
-                  desc="Chat naturally with our system. From 'Where is the library?' to 'How do I get to the Registrar?', the AI understands context and intent." 
+                  desc="Chat naturally with our system. The AI understands context and intent." 
                />
                <FeatureBox 
                   icon={Globe} 
                   title="Satellite Mapping" 
-                  desc="High-fidelity satellite imagery provides a real-world perspective of the campus, making landmark recognition instantaneous." 
+                  desc="High-fidelity satellite imagery provides a real-world perspective." 
                />
             </div>
           </div>
@@ -121,16 +109,9 @@ export default function LandingPage({ onStart }) {
       </section>
 
       {/* 4. CONTACT SECTION */}
-      <section className="py-24 px-8 lg:px-20 bg-slate-50 border-t border-slate-100 text-slate-900">
+      <section className="py-24 px-8 lg:px-20 bg-slate-50 border-t border-slate-100">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-              <h2 className="text-5xl font-black uppercase tracking-tighter">Contact <span className="text-blue-600">Offices</span></h2>
-              <p className="text-slate-500 font-bold uppercase tracking-widest mt-2 text-xs italic">For administrative inquiries and support</p>
-            </div>
-            <div className="h-px flex-1 bg-slate-200 hidden md:block mx-10 mb-4"></div>
-          </div>
-
+          <h2 className="text-5xl font-black uppercase tracking-tighter mb-12">Contact <span className="text-blue-600">Offices</span></h2>
           <div className="grid lg:grid-cols-2 gap-8">
             <ContactInfo 
               name="International Relations Office"
@@ -148,45 +129,26 @@ export default function LandingPage({ onStart }) {
         </div>
       </section>
 
-      {/* 5. SEPARATE BOTTOM FOOTER */}
-      <footer className="py-16 px-8 lg:px-20 bg-slate-100 border-t border-slate-200">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
-          <div className="flex items-center gap-2 grayscale opacity-60 hover:opacity-100 transition-opacity">
-            <div className="bg-slate-900 p-1 rounded text-white">
-              <Navigation size={16} />
-            </div>
-            <span className="font-black text-lg tracking-tighter uppercase text-slate-900">ASTUNav</span>
-          </div>
-          
-          <div className="flex flex-wrap justify-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-400">
-            <a href="#" className="hover:text-blue-600 transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-blue-600 transition-colors">Interactive Map</a>
-            <a href="#" className="hover:text-blue-600 transition-colors">Documentation</a>
-            <a href="#" className="hover:text-blue-600 transition-colors">ASTU Portal</a>
-          </div>
-
-          <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em]">
-            © 2026 ASTUNav AI System
-          </p>
-        </div>
+      <footer className="py-10 text-center bg-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+        © 2026 ASTUNav AI System
       </footer>
     </div>
   );
 }
 
 const FeatureBox = ({ icon: Icon, title, desc }) => (
-  <div className="p-10 rounded-[40px] bg-white border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all group">
-    <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-blue-100">
+  <div className="p-10 rounded-[40px] bg-white border border-slate-200 shadow-sm hover:shadow-xl transition-all">
+    <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white mb-6">
       <Icon size={28} />
     </div>
-    <h3 className="text-xl font-black uppercase mb-3 text-slate-900 leading-tight">{title}</h3>
-    <p className="text-slate-500 font-medium leading-relaxed text-sm">{desc}</p>
+    <h3 className="text-xl font-black uppercase mb-3 text-slate-900">{title}</h3>
+    <p className="text-slate-500 font-medium text-sm">{desc}</p>
   </div>
 );
 
 const ContactInfo = ({ name, phone, email, loc }) => (
-  <div className="bg-white border border-slate-200 p-10 rounded-[40px] shadow-sm hover:shadow-md transition-all group">
-    <h3 className="text-xl font-black uppercase mb-8 text-blue-600 group-hover:text-blue-700 transition-colors">{name}</h3>
+  <div className="bg-white border border-slate-200 p-10 rounded-[40px]">
+    <h3 className="text-xl font-black uppercase mb-8 text-blue-600">{name}</h3>
     <div className="space-y-4 text-slate-600 font-bold text-xs">
       <div className="flex items-center gap-3"><Phone size={16} className="text-blue-500"/> {phone}</div>
       <div className="flex items-center gap-3"><Mail size={16} className="text-blue-500"/> {email}</div>
