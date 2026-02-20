@@ -8,6 +8,7 @@ import SavedPage from './pages/SavedPage';
 import ProfilePage from './pages/ProfilePage';
 import Campus from './pages/Campus'; 
 import Navbar from './components/NavBar';
+import AdminDashboard from './pages/admin/AdminDashboard';
 
 function App() {
   const [currentStep, setCurrentStep] = useState('Landing'); 
