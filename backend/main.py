@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from motor.motor_asyncio import AsyncIOMotorClient
 from groq import Groq
-from thefuzz import process  # ✅ Added for misspelling support
+from thefuzz import process  # ✅ Supports misspelling logic like "noda nabe"
 import uvicorn
 
 # 1. Load Environment Variables
@@ -13,7 +13,7 @@ load_dotenv()
 
 app = FastAPI()
 
-# 🛡️ CORS setup - Critical for React to talk to FastAPI
+# 🛡️ CORS setup - Critical to fix "Connection Failed"
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -38,7 +38,7 @@ class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
-    role: str = "user"  # ✅ Default role is user
+    role: str = "user"  # ✅ Sets default role as user for Hawi
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -48,7 +48,7 @@ class SaveLocationRequest(BaseModel):
     user_email: EmailStr
     location_name: str
 
-# --- 🚀 Campus Hub Routes (Events & Clubs) ---
+# --- 🚀 Campus Hub Routes ---
 
 @app.get("/api/events")
 async def get_all_events():
@@ -110,29 +110,26 @@ async def register_user(user: RegisterRequest):
 @app.post("/api/login")
 async def login_user(user: LoginRequest):
     db_user = await db.users.find_one({"email": user.email})
-    
-    # ⚠️ Check if user exists and password matches
     if not db_user or db_user["password"] != user.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # ✅ Return role so App.jsx knows whether to show Admin or Student dashboard
+    # ✅ Returns role so frontend knows if it's a student (Hawi) or Admin
     return {
         "full_name": db_user["name"], 
         "email": db_user["email"],
-        "role": db_user.get("role", "user") #
+        "role": db_user.get("role", "user") 
     }
 
-# --- 🤖 AI Navigator Route ---
+# --- 🤖 AI Navigator Route (Fuzzy & Normal Chat) ---
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     user_msg = request.message.strip().lower()
     
-    # 1. Get all locations from MongoDB
     locations = await db.locations.find({}).to_list(length=100)
     names = [loc["name"] for loc in locations]
     
-    # ✅ STEP 1: Fuzzy Search (Handles Typos)
+    # ✅ STEP 1: Fuzzy Search for misspellings like "noda nabe"
     best_match, score = process.extractOne(user_msg, names)
     
     if score > 70:
@@ -142,14 +139,13 @@ async def chat_endpoint(request: ChatRequest):
             "target": {"lat": found["latitude"], "lng": found["longitude"], "name": found["name"]}
         }
 
-    # ✅ STEP 2: AI Logic for Greetings and Normal Questions
+    # ✅ STEP 2: AI Logic via Groq
     try:
         completion = gro_client.chat.completions.create(
             messages=[
                 {
                     "role": "system", 
-                    "content": f"You are the ASTU Campus Navigator. Locations available: {names}. "
-                               "Answer naturally to greetings. If they look for a place, guide them."
+                    "content": f"You are the ASTU Campus Navigator. Available locations: {names}. Guide users naturally."
                 },
                 {"role": "user", "content": user_msg}
             ],
@@ -157,7 +153,7 @@ async def chat_endpoint(request: ChatRequest):
         )
         ai_reply = completion.choices[0].message.content.strip()
         
-        # Check if AI response mentions a known building
+        # Check if AI mentioned a known building
         ai_match = next((l for l in locations if l["name"].lower() in ai_reply.lower()), None)
         if ai_match:
             return {
@@ -170,7 +166,7 @@ async def chat_endpoint(request: ChatRequest):
     except Exception as e:
         print(f"Groq Error: {e}")
         
-    return {"reply": "I'm sorry, I couldn't find that place. Try typing 'Oda Nabe Hall'.", "target": None}
+    return {"reply": "I'm sorry, I couldn't find that. Try searching for 'Oda Nabe Hall'.", "target": None}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", port=8000, reload=True)
