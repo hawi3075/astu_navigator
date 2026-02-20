@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from motor.motor_asyncio import AsyncIOMotorClient
 from groq import Groq
-from thefuzz import process  # ✅ Supports misspelling logic for campus locations
+from thefuzz import process  # ✅ Vital for typo support
 import uvicorn
 
 # 1. Load Environment Variables
@@ -13,10 +13,10 @@ load_dotenv()
 
 app = FastAPI()
 
-# 🛡️ CORS setup - Critical for fixing the "Connection to Server Failed" error
+# 🛡️ FIX: Explicit CORS for your Vite Frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,7 +38,7 @@ class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
-    role: str = "Student"  # ✅ Default role to match Hawi's profile
+    role: str = "Student" # ✅ Default role for Hawi's profile
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -48,7 +48,7 @@ class SaveLocationRequest(BaseModel):
     user_email: EmailStr
     location_name: str
 
-# --- 🚀 Campus Hub Routes ---
+# --- 🚀 Campus Hub Routes (Events & Clubs) ---
 
 @app.get("/api/events")
 async def get_all_events():
@@ -113,9 +113,9 @@ async def login_user(user: LoginRequest):
     if not db_user or db_user["password"] != user.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # ✅ Returns role so Hawi's profile correctly shows 'Student'
+    # ✅ FIX: Explicitly returns "Student" so Hawi's profile works
     return {
-        "full_name": db_user["name"], 
+        "full_name": db_user.get("name", "ASTU User"), 
         "email": db_user["email"],
         "role": db_user.get("role", "Student") 
     }
@@ -129,13 +129,13 @@ async def chat_endpoint(request: ChatRequest):
     locations = await db.locations.find({}).to_list(length=100)
     names = [loc["name"] for loc in locations]
     
-    # ✅ STEP 1: Fuzzy Search for misspellings
+    # ✅ STEP 1: Fuzzy Search (Handles misspellings like 'noda nabe')
     best_match, score = process.extractOne(user_msg, names)
     
-    if score > 70:
+    if score > 75:
         found = next(l for l in locations if l["name"] == best_match)
         return {
-            "reply": f"📍 I think you mean **{found['name']}**. Updating the map!",
+            "reply": f"📍 Moving map to **{found['name']}**.",
             "target": {"lat": found["latitude"], "lng": found["longitude"], "name": found["name"]}
         }
 
@@ -143,17 +143,14 @@ async def chat_endpoint(request: ChatRequest):
     try:
         completion = gro_client.chat.completions.create(
             messages=[
-                {
-                    "role": "system", 
-                    "content": f"You are the ASTU Campus Navigator. Locations: {names}. Answer naturally."
-                },
+                {"role": "system", "content": f"You are the ASTU Navigator. Locations: {names}."},
                 {"role": "user", "content": user_msg}
             ],
             model="llama3-8b-8192",
         )
         ai_reply = completion.choices[0].message.content.strip()
         
-        # Check if AI mentioned a building
+        # Link AI response back to map coordinates if a building is mentioned
         ai_match = next((l for l in locations if l["name"].lower() in ai_reply.lower()), None)
         if ai_match:
             return {
@@ -164,9 +161,7 @@ async def chat_endpoint(request: ChatRequest):
         return {"reply": ai_reply, "target": None}
             
     except Exception as e:
-        print(f"Groq Error: {e}")
-        
-    return {"reply": "I'm sorry, I couldn't find that. Try 'Oda Nabe Hall'.", "target": None}
+        return {"reply": "Connection to AI lost.", "target": None}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", port=8000, reload=True)
