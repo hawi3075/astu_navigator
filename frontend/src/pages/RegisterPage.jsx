@@ -1,18 +1,40 @@
 import React, { useState } from 'react';
-import { User, Mail, Lock, Navigation, ArrowRight } from 'lucide-react';
+import { User, Mail, Lock, Navigation, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 
 export default function RegisterPage({ onNavigateToLogin }) {
   const [formData, setFormData] = useState({
-    username: '',
+    name: '', // Changed from username to match backend RegisterRequest
     email: '',
     password: ''
   });
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // For now, let's just navigate to login after "registering"
-    console.log("Registration attempt:", formData);
-    onNavigateToLogin();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('http://localhost:8000/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Success! Go to login
+        onNavigateToLogin();
+      } else {
+        setError(data.detail || "Registration failed. Email might already exist.");
+      }
+    } catch (err) {
+      setError("Could not connect to server. Ensure FastAPI is running.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -27,6 +49,12 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
         <form className="space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-50 text-red-600 p-4 rounded-xl flex items-center gap-2 text-xs font-bold border border-red-100">
+              <AlertCircle size={18} /> {error}
+            </div>
+          )}
+
           <div className="relative">
             <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             <input
@@ -34,7 +62,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
               required
               placeholder="Full Name"
               className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold transition-all"
-              onChange={(e) => setFormData({...formData, username: e.target.value})}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
             />
           </div>
 
@@ -62,15 +90,16 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-blue-700 shadow-lg shadow-blue-200 active:scale-[0.98] transition-all"
+            disabled={isLoading}
+            className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-blue-700 shadow-lg shadow-blue-200 active:scale-[0.98] transition-all disabled:opacity-70"
           >
-            Register Now <ArrowRight size={18} />
+            {isLoading ? <Loader2 className="animate-spin" size={20} /> : <>Register Now <ArrowRight size={18} /></>}
           </button>
         </form>
 
         <p className="mt-8 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">
           Already have an account?{' '}
-          <button onClick={onNavigateToLogin} className="text-blue-600 hover:underline">Sign In</button>
+          <button onClick={onNavigateToLogin} className="text-blue-600 font-black hover:underline">Sign In</button>
         </p>
       </div>
     </div>
