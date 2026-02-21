@@ -2,68 +2,80 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const User = require('./models/User'); 
+const User = require('./models/User'); // Ensure your User model exists
 
 dotenv.config();
 const app = express();
 
-// 🛡️ Allow requests from your Vite frontend
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors());
 app.use(express.json());
 
-// --- REGISTRATION ROUTE ---
+// --- 🛡️ HELPER: Check if email format is valid ---
+const isValidEmail = (email) => {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(String(email).toLowerCase());
+};
+
+// --- 📝 REGISTRATION ROUTE ---
 app.post('/api/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
+
+    // 1. Basic empty field check
     if (!name || !email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({ message: "All fields are required." });
     }
 
-    const existingUser = await User.findOne({ email });
+    // 2. 🛡️ Real Email Format Check (Must be a valid @gmail, @yahoo, etc.)
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ message: "Please provide a valid, existing email address." });
+    }
+
+    // 3. Check if email already exists in your database
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
-      return res.status(400).json({ message: "Email already registered" });
+      return res.status(400).json({ message: "This email is already registered." });
     }
 
-    // Default role is Student for the profile view
-    const newUser = new User({ name, email, password, role: "Student" });
-    await newUser.save();
+    // 4. Create the new user
+    const newUser = new User({ 
+      name, 
+      email: email.toLowerCase(), 
+      password, // Note: In a real app, use bcrypt to hash this!
+      role: "Student" 
+    });
 
-    res.status(201).json({ message: "User created successfully!" });
+    await newUser.save();
+    res.status(201).json({ message: "Account created successfully!" });
+
   } catch (error) {
-    console.error("REGISTRATION ERROR:", error);
-    res.status(500).json({ message: "Server error during registration." });
+    console.error("Registration Error:", error);
+    res.status(500).json({ message: "Server error. Please try again later." });
   }
 });
 
-// --- LOGIN ROUTE (The missing piece) ---
+// --- 🔑 LOGIN ROUTE ---
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    const user = await User.findOne({ email: email.toLowerCase() });
 
-    // 1. Check if the email exists in the real MongoDB
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ message: "Email not found. Please register." });
+    if (!user || user.password !== password) {
+      return res.status(401).json({ message: "Invalid email or password." });
     }
 
-    // 2. Check password (Note: In production, use bcrypt.compare)
-    if (user.password !== password) {
-      return res.status(401).json({ message: "Incorrect password." });
-    }
-
-    // 3. Success! Return user info for the frontend
+    // ✅ IMPORTANT: Send all data so the Profile Page updates correctly
     res.status(200).json({
       full_name: user.name,
       email: user.email,
-      role: user.role || "Student"
+      role: user.role
     });
   } catch (error) {
-    console.error("LOGIN ERROR:", error);
-    res.status(500).json({ message: "Server error during login." });
+    res.status(500).json({ message: "Login failed." });
   }
 });
 
 const PORT = process.env.PORT || 5000;
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => app.listen(PORT, () => console.log(`Auth Server running on port ${PORT}`)))
-  .catch(err => console.log("DB Connection Error: ", err));
+  .then(() => app.listen(PORT, () => console.log(`Auth Server on port ${PORT}`)))
+  .catch(err => console.log("DB Error: ", err));

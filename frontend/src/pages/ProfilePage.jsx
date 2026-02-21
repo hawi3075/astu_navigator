@@ -1,15 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  User, Mail, Shield, ChevronLeft, LogOut, Settings 
+  User, Mail, Shield, ChevronLeft, LogOut 
 } from 'lucide-react';
 
 export default function ProfilePage({ onNavigate, onLogout }) {
-  // Mock user data matching your screenshot
-  const user = {
-    name: "Hawi",
-    email: "hawi@astu.edu.et",
+  // ✅ FIX: State to hold the REAL user data
+  const [userData, setUserData] = useState({
+    name: "Loading...",
+    email: "...",
     role: "Student"
-  };
+  });
+
+  // ✅ FIX: Load data from localStorage when the page opens
+  useEffect(() => {
+    const savedName = localStorage.getItem("userName");
+    const savedEmail = localStorage.getItem("userEmail");
+    const savedRole = localStorage.getItem("userRole");
+
+    if (savedName && savedEmail) {
+      setUserData({
+        name: savedName,
+        email: savedEmail,
+        role: savedRole || "Student"
+      });
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
@@ -25,7 +40,6 @@ export default function ProfilePage({ onNavigate, onLogout }) {
           <h1 className="text-xl font-black text-slate-800 tracking-tight">Account Settings</h1>
         </div>
 
-        {/* ✅ LOGOUT BUTTON ADDED HERE */}
         <button 
           onClick={onLogout}
           className="flex items-center gap-2 bg-red-50 text-red-500 px-4 py-2 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-red-100 transition-all active:scale-95 shadow-sm"
@@ -45,7 +59,10 @@ export default function ProfilePage({ onNavigate, onLogout }) {
                 <User size={60} className="text-slate-400" />
               </div>
             </div>
-            <h2 className="text-3xl font-[1000] text-slate-900 tracking-tighter">{user.name}</h2>
+            {/* ✅ Displays real name now */}
+            <h2 className="text-3xl font-[1000] text-slate-900 tracking-tighter capitalize">
+               {userData.name}
+            </h2>
             <p className="text-blue-600 font-bold text-sm tracking-wide mt-1">ASTU Navigator Explorer</p>
           </div>
         </div>
@@ -58,7 +75,8 @@ export default function ProfilePage({ onNavigate, onLogout }) {
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Email Address</p>
-              <p className="font-bold text-slate-800">{user.email}</p>
+              {/* ✅ Displays real email */}
+              <p className="font-bold text-slate-800">{userData.email}</p>
             </div>
           </div>
 
@@ -68,7 +86,8 @@ export default function ProfilePage({ onNavigate, onLogout }) {
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">User Role</p>
-              <p className="font-bold text-slate-800">{user.role}</p>
+              {/* ✅ Displays real role */}
+              <p className="font-bold text-slate-800">{userData.role}</p>
             </div>
           </div>
         </div>
