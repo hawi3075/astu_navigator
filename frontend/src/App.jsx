@@ -41,15 +41,15 @@ function App() {
         return (
           <LoginPage 
             onLoginSuccess={(data) => {
-              // ✅ Save everything to localStorage immediately
+              // ✅ Save to localStorage
               localStorage.setItem("userRole", data.role || "Student");
               localStorage.setItem("userEmail", data.email);
               localStorage.setItem("userName", data.full_name); 
               
-              // ✅ Update state immediately to trigger Navbar render
+              // ✅ Update state immediately
               setUserRole(data.role || "Student");
               setIsLoggedIn(true);
-              setActiveTab('Home'); // Ensure we start on Home
+              setActiveTab('Home'); 
               setCurrentStep('Dashboard');
             }} 
             onNavigateToRegister={() => setCurrentStep('Register')} 
@@ -69,23 +69,32 @@ function App() {
     }
 
     // --- DASHBOARD NAVIGATION ---
+    // ✅ Ensure these cases match your NavBar.jsx onClick labels exactly
     switch (activeTab) {
-      case 'Home': return <HomePage onNavigate={setActiveTab} />;
-      case 'Explore': return <MapPage onNavigate={setActiveTab} />; // Matches Navbar 'Explore' label
-      case 'Campus': return <Campus onNavigate={setActiveTab} />; 
-      case 'Saved': return <SavedPage onNavigate={setActiveTab} />;
-      case 'Profile': return <ProfilePage onNavigate={setActiveTab} onLogout={handleLogout} />;
-      default: return <HomePage onNavigate={setActiveTab} />;
+      case 'Home': 
+        return <HomePage onNavigate={setActiveTab} />;
+      case 'Explore': 
+      case 'Map': 
+        return <MapPage onNavigate={setActiveTab} />; 
+      case 'Campus': 
+        return <Campus onNavigate={setActiveTab} />; 
+      case 'Saved': 
+        return <SavedPage onNavigate={setActiveTab} />;
+      case 'Profile': 
+        return <ProfilePage onNavigate={setActiveTab} onLogout={handleLogout} />;
+      default: 
+        return <HomePage onNavigate={setActiveTab} />;
     }
   };
 
   return (
     <div className={`flex flex-col bg-white font-sans ${isLoggedIn ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
+      {/* Main Container */}
       <div className={`flex-1 ${isLoggedIn ? 'overflow-y-auto pb-24' : ''}`}>
         {renderContent()}
       </div>
 
-      {/* ✅ SIMPLIFIED NAVBAR LOGIC: Shows for ANY logged-in user who isn't an Admin */}
+      {/* ✅ Navbar: Visible for logged-in students/users */}
       {isLoggedIn && userRole !== 'Admin' && (
         <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
       )}
