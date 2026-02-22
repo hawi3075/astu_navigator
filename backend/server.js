@@ -2,73 +2,49 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const User = require('./models/User');
 
+// Import Routes
+const adminRoutes = require('./routes/adminRoutes');
+
+// Load environment variables
 dotenv.config();
+
 const app = express();
-app.use(cors());
-app.use(express.json());
 
-// --- 📦 DATABASE SCHEMAS ---
-const Event = mongoose.models.Event || mongoose.model('Event', new mongoose.Schema({
-  title: String, date: String, location: String, description: String
-}));
+// --- 🛠️ MIDDLEWARE ---
+app.use(cors()); // Allows frontend to communicate with backend
+app.use(express.json()); // Parses incoming JSON data
 
-const Location = mongoose.models.Location || mongoose.model('Location', new mongoose.Schema({
-  name: String, lat: Number, lng: Number
-}));
-
-// --- 📍 LOCATION ROUTES (Fixes "Update Map" & "Delete Location") ---
-app.get('/api/admin/locations', async (req, res) => {
-  const locs = await Location.find();
-  res.json(locs);
+// --- 🌐 HEALTH CHECK ROUTE ---
+// Open http://localhost:5000 in your browser to check if server is alive
+app.get('/', (req, res) => {
+    res.send({ status: "Online", message: "ASTU Navigator API is running on Port 5000" });
 });
 
-app.post('/api/admin/locations', async (req, res) => {
-  try {
-    const newLoc = new Location(req.body);
-    await newLoc.save();
-    res.status(201).json(newLoc);
-  } catch (err) { res.status(400).json({ error: err.message }); }
+// --- 🔗 ROUTES ---
+// All routes in adminRoutes will be prefixed with /api/admin
+app.use('/api/admin', adminRoutes);
+
+// --- ⚠️ GLOBAL ERROR HANDLER ---
+// Catches any unexpected errors to prevent the server from crashing
+app.use((err, req, res, next) => {
+    console.error("Internal Server Error:", err.stack);
+    res.status(500).json({ error: "Something went wrong on the server!" });
 });
 
-app.delete('/api/admin/locations/:id', async (req, res) => {
-  await Location.findByIdAndDelete(req.params.id);
-  res.json({ message: "Location deleted" });
-});
+// --- 📦 DATABASE & SERVER START ---
+const PORT = process.env.PORT || 5000;
 
-// --- 📅 EVENT ROUTES (Fixes "Publish Event") ---
-app.get('/api/admin/events', async (req, res) => {
-  const events = await Event.find();
-  res.json(events);
-});
-
-app.post('/api/admin/events', async (req, res) => {
-  const newEvent = new Event(req.body);
-  await newEvent.save();
-  res.status(201).json(newEvent);
-});
-
-// --- 👥 USER ROUTES (Fixes "Delete User") ---
-app.get('/api/admin/users', async (req, res) => {
-  const users = await User.find({}, '-password');
-  res.json(users);
-});
-
-app.delete('/api/admin/users/:id', async (req, res) => {
-  await User.findByIdAndDelete(req.params.id);
-  res.json({ message: "User deleted" });
-});
-
-// --- 📊 STATS ROUTE (Fixes 0,0,0 display) ---
-app.get('/api/admin/stats', async (req, res) => {
-  const u = await User.countDocuments();
-  const e = await Event.countDocuments();
-  const l = await Location.countDocuments();
-  res.json({ users: u, events: e, points: l });
-});
-
-// --- 🚀 START ---
+// Connect to MongoDB Atlas
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => app.listen(5000, () => console.log("🚀 Server ready on Port 5000")))
-  .catch(err => console.error("DB Error:", err));
+    .then(() => {
+        console.log("✅ Connected to MongoDB Atlas successfully");
+        app.listen(PORT, () => {
+            console.log(`🚀 Server fully active on: http://localhost:${PORT}`);
+        });
+    })
+    .catch(err => {
+        console.error("❌ Database connection failed!");
+        console.error("Reason:", err.message);
+        console.log("\n💡 TIP: Make sure your IP address is whitelisted in MongoDB Atlas Network Access.");
+    });
