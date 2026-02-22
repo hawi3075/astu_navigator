@@ -1,107 +1,85 @@
 import React, { useState } from 'react';
-import { User, Mail, Lock, Navigation, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FaEye, FaEyeSlash, FaUser, FaEnvelope, FaLock } from 'react-icons/fa';
+import axios from 'axios';
 
-export default function RegisterPage({ onNavigateToLogin }) {
-  const [formData, setFormData] = useState({
-    name: '', // Changed from username to match backend RegisterRequest
-    email: '',
-    password: ''
-  });
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+const RegisterPage = () => {
+    const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+    const [showPassword, setShowPassword] = useState(false);
+    const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
+    const handleRegister = async (e) => {
+        e.preventDefault();
+        
+        // 📧 Strict Email Validation (Regex)
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            return alert("Please insert a correct, valid email address.");
+        }
 
-    try {
-      const response = await fetch('http://localhost:8000/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+        try {
+            const res = await axios.post("http://localhost:8000/api/register", formData);
+            alert(res.data.message);
+            navigate('/login');
+        } catch (err) {
+            // 🛑 Handles "Already Exists" error from Backend
+            alert(err.response?.data?.detail || "Registration failed");
+        }
+    };
 
-      const data = await response.json();
+    return (
+        <div className="auth-page">
+            <div className="auth-card">
+                <div className="auth-header">
+                    <div className="icon-badge">🚀</div>
+                    <h1>CREATE ACCOUNT</h1>
+                    <p>JOIN THE ASTU SPATIAL NETWORK</p>
+                </div>
 
-      if (response.ok) {
-        // Success! Go to login
-        onNavigateToLogin();
-      } else {
-        setError(data.detail || "Registration failed. Email might already exist.");
-      }
-    } catch (err) {
-      setError("Could not connect to server. Ensure FastAPI is running.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+                <form onSubmit={handleRegister}>
+                    <div className="input-group">
+                        <FaUser className="input-icon" />
+                        <input 
+                            type="text" 
+                            placeholder="Full Name" 
+                            onChange={(e) => setFormData({...formData, name: e.target.value})}
+                            required 
+                        />
+                    </div>
 
-  return (
-    <div className="min-h-screen bg-white flex flex-col justify-center px-6 py-12">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="inline-flex items-center justify-center p-3 bg-blue-600 rounded-2xl text-white shadow-xl shadow-blue-200 mb-6">
-          <Navigation size={32} />
-        </div>
-        <h2 className="text-4xl font-[1000] text-slate-900 tracking-tighter uppercase">Create Account</h2>
-        <p className="mt-2 text-sm font-bold text-slate-500 uppercase tracking-widest">Join the ASTU Spatial Network</p>
-      </div>
+                    <div className="input-group">
+                        <FaEnvelope className="input-icon" />
+                        <input 
+                            type="email" 
+                            placeholder="Email Address" 
+                            onChange={(e) => setFormData({...formData, email: e.target.value.toLowerCase()})}
+                            required 
+                        />
+                    </div>
 
-      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-50 text-red-600 p-4 rounded-xl flex items-center gap-2 text-xs font-bold border border-red-100">
-              <AlertCircle size={18} /> {error}
+                    <div className="input-group">
+                        <FaLock className="input-icon" />
+                        <input 
+                            type={showPassword ? "text" : "password"} 
+                            placeholder="Password" 
+                            onChange={(e) => setFormData({...formData, password: e.target.value})}
+                            required 
+                        />
+                        <span className="eye-icon" onClick={() => setShowPassword(!showPassword)}>
+                            {showPassword ? <FaEyeSlash /> : <FaEye />}
+                        </span>
+                    </div>
+
+                    <button type="submit" className="register-btn">REGISTER NOW →</button>
+                </form>
+
+                <p className="auth-footer">
+                    Already have an account? 
+                    <span onClick={() => navigate('/login')}> Sign In</span>
+                </p>
             </div>
-          )}
+        </div>
+    );
+};
 
-          <div className="relative">
-            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-            <input
-              type="text"
-              required
-              placeholder="Full Name"
-              className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold transition-all"
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-            />
-          </div>
-
-          <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-            <input
-              type="email"
-              required
-              placeholder="ASTU Email (@astu.edu.et)"
-              className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold transition-all"
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
-            />
-          </div>
-
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-            <input
-              type="password"
-              required
-              placeholder="Create Password"
-              className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold transition-all"
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-blue-700 shadow-lg shadow-blue-200 active:scale-[0.98] transition-all disabled:opacity-70"
-          >
-            {isLoading ? <Loader2 className="animate-spin" size={20} /> : <>Register Now <ArrowRight size={18} /></>}
-          </button>
-        </form>
-
-        <p className="mt-8 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">
-          Already have an account?{' '}
-          <button onClick={onNavigateToLogin} className="text-blue-600 font-black hover:underline">Sign In</button>
-        </p>
-      </div>
-    </div>
-  );
-}
+export default RegisterPage;

@@ -8,6 +8,7 @@ from groq import Groq
 from thefuzz import process 
 import uvicorn
 
+# Load environment variables from .env file
 load_dotenv()
 
 app = FastAPI()
@@ -15,7 +16,7 @@ app = FastAPI()
 # 🛡️ CORS setup - Critical for Vite (5173) to communicate with FastAPI (8000)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -25,9 +26,19 @@ app.add_middleware(
 MONGO_URI = os.getenv("MONGO_URI")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
+# Validate API Key existence
+if not GROQ_API_KEY:
+    print("❌ ERROR: GROQ_API_KEY not found in environment variables!")
+
 client = AsyncIOMotorClient(MONGO_URI)
 db = client.ASTU_Nav
 gro_client = Groq(api_key=GROQ_API_KEY)
+
+# --- Helper to serialize MongoDB docs ---
+def fix_id(doc):
+    if doc:
+        doc["_id"] = str(doc["_id"])
+    return doc
 
 # --- Pydantic Models ---
 class ChatRequest(BaseModel):
@@ -37,7 +48,7 @@ class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
-    role: str = "Student"
+    role: str = "user"
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -47,27 +58,22 @@ class SaveLocationRequest(BaseModel):
     user_email: EmailStr
     location_name: str
 
-# --- 🚀 Campus Hub Routes ---
+# --- 🚀 Routes ---
 
 @app.get("/api/events")
 async def get_all_events():
     events = await db.events.find().to_list(length=100)
-    for e in events: e["_id"] = str(e["_id"])
-    return events
+    return [fix_id(e) for e in events]
 
 @app.get("/api/clubs")
 async def get_all_clubs():
     clubs = await db.clubs.find().to_list(length=100)
-    for c in clubs: c["_id"] = str(c["_id"])
-    return clubs
-
-# --- 📍 Map & Location Routes ---
+    return [fix_id(c) for c in clubs]
 
 @app.get("/api/admin/locations_list")
 async def get_all_locations():
     locs = await db.locations.find().to_list(length=100)
-    for l in locs: l["_id"] = str(l["_id"])
-    return locs
+    return [fix_id(l) for l in locs]
 
 @app.post("/api/save-location")
 async def save_location(request: SaveLocationRequest):
@@ -78,15 +84,19 @@ async def save_location(request: SaveLocationRequest):
     )
     return {"message": "Saved successfully"}
 
+@app.delete("/api/save-location")
+async def remove_location(email: str, location_name: str):
+    result = await db.saved_locations.delete_one({"user_email": email, "location_name": location_name})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Location not found")
+    return {"message": "Removed successfully"}
+
 @app.get("/api/saved-locations/{email}")
 async def get_saved_locations(email: str):
     saved_docs = await db.saved_locations.find({"user_email": email}).to_list(length=100)
     names = [doc["location_name"] for doc in saved_docs]
     full_details = await db.locations.find({"name": {"$in": names}}).to_list(length=100)
-    for loc in full_details: loc["_id"] = str(loc["_id"])
-    return full_details
-
-# --- 🔑 Authentication Routes ---
+    return [fix_id(loc) for loc in full_details]
 
 @app.post("/api/register")
 async def register_user(user: RegisterRequest):
@@ -97,50 +107,54 @@ async def register_user(user: RegisterRequest):
 
 @app.post("/api/login")
 async def login_user(user: LoginRequest):
-    db_user = await db.users.find_one({"email": user.email})
+    db_user = await db.users.find_one({"email": user.email.lower()})
     if not db_user or db_user["password"] != user.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
     return {
-        "full_name": db_user.get("name", "ASTU User"), 
+        "name": db_user.get("name", "ASTU User"), 
         "email": db_user["email"],
-        "role": db_user.get("role", "Student") 
+        "role": db_user.get("role", "user").lower() 
     }
 
-# --- 🤖 AI Navigator ---
+# --- 🤖 AI Navigator with Enhanced Matching ---
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     user_msg = request.message.strip().lower()
-    locations = await db.locations.find({}).to_list(length=100)
+    locations = await db.locations.find({}).to_list(length=200)
     names = [loc["name"] for loc in locations]
     
-    best_match, score = process.extractOne(user_msg, names)
-    if score > 75:
-        found = next(l for l in locations if l["name"] == best_match)
-        return {
-            "reply": f"📍 Moving map to **{found['name']}**.",
-            "target": {"lat": found["latitude"], "lng": found["longitude"], "name": found["name"]}
-        }
+    # 1. Fuzzy match check (Quick response for direct building names)
+    if names:
+        best_match, score = process.extractOne(user_msg, names)
+        if score > 85:
+            found = next(l for l in locations if l["name"] == best_match)
+            return {
+                "reply": f"📍 Moving map to **{found['name']}**.",
+                "target": {"lat": found["latitude"], "lng": found["longitude"], "name": found["name"]}
+            }
 
+    # 2. AI completion (For general chat or complex queries)
     try:
         completion = gro_client.chat.completions.create(
             messages=[
-                {"role": "system", "content": f"You are the ASTU Navigator. Locations: {names}."},
+                {"role": "system", "content": f"You are the ASTU Navigator AI. Help students find buildings. Campus buildings available: {', '.join(names)}. Always mention the specific building name if found."},
                 {"role": "user", "content": user_msg}
             ],
-            model="llama3-8b-8192",
+            model="llama-3.3-70b-versatile", # ✅ UPDATED: Used a current active model
         )
-        ai_reply = completion.choices[0].message.content.strip()
+        ai_reply = completion.choices[0].message.content
+        
+        # Cross-reference AI reply with DB names to trigger map movement
         ai_match = next((l for l in locations if l["name"].lower() in ai_reply.lower()), None)
-        if ai_match:
-            return {
-                "reply": ai_reply,
-                "target": {"lat": ai_match["latitude"], "lng": ai_match["longitude"], "name": ai_match["name"]}
-            }
-        return {"reply": ai_reply, "target": None}
-    except Exception:
-        return {"reply": "Connection to AI lost.", "target": None}
+        
+        return {
+            "reply": ai_reply,
+            "target": {"lat": ai_match["latitude"], "lng": ai_match["longitude"], "name": ai_match["name"]} if ai_match else None
+        }
+    except Exception as e:
+        print(f"Groq API Error: {e}")
+        return {"reply": "I'm having a bit of trouble connecting to my AI core, but I can still help you find buildings by name!", "target": None}
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
