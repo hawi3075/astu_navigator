@@ -9,7 +9,7 @@ const authRoutes = require('./routes/authRoutes');
 dotenv.config();
 const app = express();
 
-// --- 🛠️ MIDDLEWARE (Order Matters!) ---
+// --- 🛠️ MIDDLEWARE ---
 app.use(cors({
     origin: "http://localhost:5173",
     credentials: true
@@ -17,11 +17,17 @@ app.use(cors({
 app.use(express.json()); 
 
 // --- 🔗 ROUTES ---
-app.use('/api/auth', authRoutes);   // Logic: /api/auth/login
+app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
     res.send({ status: "Online", message: "ASTU Navigator API on Port 5000" });
+});
+
+// ✅ Added Global Error Handler to stop "Uncaught Errors" on the frontend
+app.use((err, req, res, next) => {
+    console.error("🔥 Server Error:", err.stack);
+    res.status(500).json({ error: "Something went wrong on the server!" });
 });
 
 // --- 📦 DATABASE & START ---

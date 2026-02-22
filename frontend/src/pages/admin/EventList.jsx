@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Trash2, Calendar, MapPin, Loader2 } from 'lucide-react';
+import { Send, Trash2, Calendar, MapPin, Loader2, CheckCircle2 } from 'lucide-react';
 
 export default function EventList() {
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 1. Load events from the backend
+  // 1. Fetch Events
   const fetchEvents = async () => {
     try {
       setIsLoading(true);
@@ -26,10 +26,33 @@ export default function EventList() {
     fetchEvents();
   }, []);
 
+  // ✅ 2. FIXED DELETE LOGIC
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this event?")) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/admin/events/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        // Remove from UI immediately so it feels fast
+        setEvents(events.filter(event => event._id !== id));
+      } else {
+        const errorData = await response.json();
+        alert(`Error: ${errorData.error || 'Failed to delete'}`);
+      }
+    } catch (error) {
+      console.error("Delete request failed:", error);
+      alert("Server is not responding. Check your backend.");
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-10 animate-in fade-in duration-500">
       
-      {/* --- TOP: CREATE EVENT FORM (Clean, No Icons) --- */}
+      {/* --- TOP: CREATE EVENT FORM --- */}
       <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100">
         <h2 className="text-xl font-black uppercase tracking-tight text-slate-800 mb-6">
           Create Campus Event
@@ -86,7 +109,6 @@ export default function EventList() {
             <p className="text-xs font-bold uppercase tracking-widest">Updating List...</p>
           </div>
         ) : events.length > 0 ? (
-          /* DISPLAY LIST IF NOT EMPTY */
           <div className="grid gap-3">
             {events.map((event) => (
               <div key={event._id} className="group flex items-center justify-between p-5 bg-slate-50 rounded-[24px] border border-transparent hover:border-blue-100 hover:bg-white transition-all">
@@ -97,24 +119,27 @@ export default function EventList() {
                     <span className="flex items-center gap-1.5"><Calendar size={12} className="text-slate-400"/> {new Date(event.date).toLocaleDateString()}</span>
                   </div>
                 </div>
-                <button className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                
+                {/* ✅ FIXED BUTTON: Added onClick handler */}
+                <button 
+                  onClick={() => handleDelete(event._id)}
+                  className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all group-hover:text-slate-400"
+                  title="Delete Event"
+                >
                   <Trash2 size={20} />
                 </button>
               </div>
             ))}
           </div>
         ) : (
-          /* DISPLAY THIS IF LIST IS EMPTY */
           <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-slate-50 rounded-[24px]">
             <div className="bg-slate-50 p-4 rounded-full mb-4">
               <Calendar size={32} className="text-slate-200" />
             </div>
             <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">No events published yet</p>
-            <p className="text-slate-300 text-[10px] mt-1">New events you create will appear here.</p>
           </div>
         )}
       </div>
-
     </div>
   );
 }
