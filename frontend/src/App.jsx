@@ -23,7 +23,7 @@ function App() {
     
     if (user && role) {
       setIsLoggedIn(true);
-      setUserRole(role);
+      setUserRole(role.toLowerCase()); // Ensure lowercase comparison
       setCurrentStep('Dashboard');
     }
   }, []);
@@ -38,19 +38,27 @@ function App() {
   };
 
   const renderContent = () => {
+    // 1. UNAUTHENTICATED FLOW
     if (!isLoggedIn) {
       if (currentStep === 'Login') {
         return (
           <LoginPage 
             onLoginSuccess={(data) => {
-              // Handle nested user object from backend
+              // ✅ FIX: Extract the actual user object
               const user = data.user || data; 
-              const role = user.role || 'user';
+              
+              // ✅ FIX: Strictly use the role from the database response
+              // We remove the || 'user' fallback to see the real data
+              const role = user.role ? user.role.toLowerCase() : 'user';
               const name = user.name || (role === 'admin' ? "Admin" : "User");
+
+              // Clear old storage before saving new user data
+              localStorage.clear();
 
               localStorage.setItem("userRole", role); 
               localStorage.setItem("userEmail", user.email);
               localStorage.setItem("userName", name); 
+              if(data.token) localStorage.setItem("token", data.token);
 
               setUserRole(role);
               setIsLoggedIn(true);
@@ -66,12 +74,13 @@ function App() {
       return <LandingPage onStart={(mode) => setCurrentStep(mode === 'register' ? 'Register' : 'Login')} />;
     }
 
-    // 🛡️ Admin View
-    if (userRole?.toLowerCase() === 'admin') {
+    // 🛡️ 2. ADMIN VIEW
+    // Ensure strict check against 'admin'
+    if (userRole === 'admin') {
        return <AdminDashboard onLogout={handleLogout} />;
     }
 
-    // 🎓 Student View
+    // 🎓 3. STUDENT VIEW (Only if NOT admin)
     switch (activeTab) {
       case 'Home': return <HomePage onNavigate={setActiveTab} />;
       case 'Explore': case 'Map': return <MapPage onNavigate={setActiveTab} />; 
@@ -83,18 +92,17 @@ function App() {
   };
 
   return (
-    /**
-     * ✅ SCROLL FIX: 
-     * We use 'min-h-screen' to allow the body to grow.
-     * We remove 'overflow-hidden' from any parent containers.
-     */
     <div className="min-h-screen bg-white font-sans flex flex-col overflow-y-auto">
-      <div className={`flex-1 w-full ${isLoggedIn && userRole?.toLowerCase() !== 'admin' ? 'pb-24' : ''}`}>
+      {/* ✅ LAYOUT LOGIC: 
+         Admin: Full screen content, no bottom navbar.
+         User: Content with padding-bottom for the Navbar.
+      */}
+      <div className={`flex-1 w-full ${isLoggedIn && userRole !== 'admin' ? 'pb-24' : ''}`}>
         {renderContent()}
       </div>
 
-      {/* ✅ STUDENT NAV: Only shown for non-admin users */}
-      {isLoggedIn && userRole?.toLowerCase() !== 'admin' && (
+      {/* ✅ STUDENT NAV: Only shown for logged-in non-admin users */}
+      {isLoggedIn && userRole !== 'admin' && (
         <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
       )}
     </div>
