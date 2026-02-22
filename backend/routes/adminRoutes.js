@@ -2,16 +2,14 @@ const express = require('express');
 const router = express.Router();
 const adminCtrl = require('../controllers/adminController');
 
-// Import Models directly for the inline routes
+// Import Models
 const Event = require('../models/Event');
 const User = require('../models/User');
 const Location = require('../models/Location');
 
 // --- 📊 STATS & USERS ---
-// Uses the controller function we fixed earlier
 router.get('/stats', adminCtrl.getStats); 
 
-// Get all users (excluding passwords for security)
 router.get('/users', async (req, res) => {
     try {
         const users = await User.find({}, '-password');
@@ -24,7 +22,6 @@ router.get('/users', async (req, res) => {
 router.delete('/users/:id', adminCtrl.deleteUser);
 
 // --- 📍 LOCATIONS ---
-// Get all campus points
 router.get('/locations', async (req, res) => {
     try {
         const locations = await Location.find().sort({ createdAt: -1 });
@@ -34,12 +31,12 @@ router.get('/locations', async (req, res) => {
     }
 });
 
-// Use the controller for adding/deleting (handles coordinate conversion)
 router.post('/locations', adminCtrl.addLocation);
 router.delete('/locations/:id', adminCtrl.deleteLocation);
 
 // --- 📅 EVENTS ---
-// Get all scheduled events
+
+// 1. Get Events
 router.get('/events', async (req, res) => {
     try {
         const events = await Event.find().sort({ date: 1 });
@@ -49,30 +46,39 @@ router.get('/events', async (req, res) => {
     }
 });
 
-// Inline POST for events with error handling
+// 2. Add Event
 router.post('/events', async (req, res) => {
     try {
         const event = new Event(req.body);
         await event.save();
         res.status(201).json(event);
     } catch (err) {
-        res.status(400).json({ error: "Could not save event. Check date format." });
+        res.status(400).json({ error: "Could not save event." });
     }
 });
 
-// ✅ ADDED: DELETE route for events (This fixes the delete icon not working)
+// 3. ✅ DELETE EVENT (This fixes your 404 & JSON error)
 router.delete('/events/:id', async (req, res) => {
     try {
         const { id } = req.params;
+
+        // Check if ID is valid format to prevent server crash
+        if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({ error: "Invalid ID format" });
+        }
+
         const deletedEvent = await Event.findByIdAndDelete(id);
         
         if (!deletedEvent) {
             return res.status(404).json({ error: "Event not found" });
         }
         
-        res.status(200).json({ message: "Event deleted successfully" });
+        // We MUST return JSON so the frontend doesn't see a "SyntaxError"
+        return res.status(200).json({ success: true, message: "Event deleted" });
+
     } catch (err) {
-        res.status(500).json({ error: "Failed to delete event" });
+        console.error("Delete Error:", err);
+        return res.status(500).json({ error: "Server error during deletion" });
     }
 });
 
