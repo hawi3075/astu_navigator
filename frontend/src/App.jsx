@@ -36,18 +36,17 @@ function App() {
   };
 
   const renderContent = () => {
-    // --- 1. LOGIN/REGISTER FLOW ---
     if (!isLoggedIn) {
       if (currentStep === 'Login') {
         return (
           <LoginPage 
             onLoginSuccess={(data) => {
-              // Store exact strings
-              localStorage.setItem("userRole", data.role); 
-              localStorage.setItem("userEmail", data.email);
-              localStorage.setItem("userName", data.full_name); 
-              
-              setUserRole(data.role);
+              const user = data.user || data; 
+              const role = user.role || 'user';
+              localStorage.setItem("userRole", role); 
+              localStorage.setItem("userEmail", user.email);
+              localStorage.setItem("userName", user.name || "Admin"); 
+              setUserRole(role);
               setIsLoggedIn(true);
               setCurrentStep('Dashboard');
             }} 
@@ -59,18 +58,13 @@ function App() {
       return <LandingPage onStart={(mode) => setCurrentStep(mode === 'register' ? 'Register' : 'Login')} />;
     }
 
-    // --- 2. ADMIN VIEW ---
-    // Using .toLowerCase() makes it safer if your DB has "Admin" or "admin"
     if (userRole?.toLowerCase() === 'admin') {
        return <AdminDashboard onLogout={handleLogout} />;
     }
 
-    // --- 3. STUDENT/USER TABS ---
     switch (activeTab) {
       case 'Home': return <HomePage onNavigate={setActiveTab} />;
-      case 'Explore': 
-      case 'Map': 
-        return <MapPage onNavigate={setActiveTab} />; 
+      case 'Map': return <MapPage onNavigate={setActiveTab} />; 
       case 'Campus': return <Campus onNavigate={setActiveTab} />; 
       case 'Saved': return <SavedPage onNavigate={setActiveTab} />;
       case 'Profile': return <ProfilePage onNavigate={setActiveTab} onLogout={handleLogout} />;
@@ -79,12 +73,12 @@ function App() {
   };
 
   return (
-    <div className={`flex flex-col bg-white font-sans ${isLoggedIn ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
-      <div className={`flex-1 ${isLoggedIn ? 'overflow-y-auto pb-24' : ''}`}>
+    /* Use min-h-screen and remove overflow-hidden to allow scrolling */
+    <div className="flex flex-col bg-white font-sans min-h-screen">
+      <div className={`flex-1 ${isLoggedIn && userRole?.toLowerCase() !== 'admin' ? 'pb-24' : ''}`}>
         {renderContent()}
       </div>
 
-      {/* Show Navbar ONLY if logged in AND NOT an admin */}
       {isLoggedIn && userRole?.toLowerCase() !== 'admin' && (
         <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
       )}

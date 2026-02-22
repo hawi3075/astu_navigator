@@ -2,20 +2,29 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 
-// POST /api/auth/login
+// This handles POST to http://localhost:5000/api/auth/login
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        console.log("📥 Login attempt:", email); // Verify this appears in your terminal
+
         const user = await User.findOne({ email });
 
-        // Simple check for now - you should use bcrypt to compare hashed passwords later
         if (user && user.password === password) {
-            res.json({ message: "Login successful", user: { name: user.name, email: user.email } });
-        } else {
-            res.status(401).json({ error: "Invalid email or password" });
-        }
+            return res.status(200).json({ 
+                message: "Login successful", 
+                user: { 
+                    name: user.name, 
+                    email: user.email,
+                    role: user.role || 'admin'
+                } 
+            });
+        } 
+        
+        return res.status(401).json({ error: "Invalid email or password" });
     } catch (err) {
-        res.status(500).json({ error: "Server error during login" });
+        console.error("❌ Server Login Error:", err);
+        res.status(500).json({ error: "Internal server error" });
     }
 });
 
