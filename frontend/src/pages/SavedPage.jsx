@@ -2,21 +2,25 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Trash2, MapPin, Loader2, BookmarkX, Navigation, ArrowRight, ArrowLeft } from 'lucide-react';
 
-// ✅ FIX 1: Use onNavigate prop instead of useNavigate() hook
 const SavedPage = ({ onNavigate }) => {
     const [savedItems, setSavedItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    // Ensure we are getting the email correctly
     const userEmail = localStorage.getItem("userEmail");
 
     useEffect(() => {
-        if (userEmail) fetchSaved();
-        else setLoading(false);
+        if (userEmail) {
+            fetchSaved();
+        } else {
+            setLoading(false);
+        }
     }, [userEmail]);
 
     const fetchSaved = async () => {
         try {
             setLoading(true);
-            const res = await axios.get(`http://localhost:8000/api/saved-locations/${userEmail}`);
+            // ✅ Updated port to 5000 to match your Node.js backend from previous logs
+            const res = await axios.get(`http://localhost:5000/api/saved-locations/${userEmail}`);
             setSavedItems(res.data);
         } catch (err) {
             console.error("Error fetching saved locations:", err);
@@ -25,13 +29,26 @@ const SavedPage = ({ onNavigate }) => {
         }
     };
 
-    const removeLocation = async (e, name) => {
-        e.stopPropagation();
+    const removeLocation = async (e, locationName) => {
+        e.stopPropagation(); // Prevents navigating to the map when clicking delete
+        
+        if (!window.confirm(`Remove ${locationName} from your saved spots?`)) return;
+
         try {
-            await axios.delete(`http://localhost:8000/api/save-location?email=${userEmail}&location_name=${name}`);
-            setSavedItems(prev => prev.filter(item => item.name !== name));
+            // ✅ FIX: Match the backend route precisely. 
+            // If your backend uses query params, use this:
+            await axios.delete(`http://localhost:5000/api/save-location`, {
+                params: {
+                    email: userEmail,
+                    location_name: locationName
+                }
+            });
+
+            // Update UI immediately
+            setSavedItems(prev => prev.filter(item => item.name !== locationName));
         } catch (err) {
-            alert("Failed to remove.");
+            console.error("Delete request failed:", err);
+            alert("Server is not responding. Check if your Node.js terminal is running on port 5000.");
         }
     };
 
@@ -52,8 +69,8 @@ const SavedPage = ({ onNavigate }) => {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] flex flex-col">
-            {/* ✅ FIX 2: Added Sticky Back Header for consistent navigation */}
-            <div className="bg-white px-6 py-4 flex items-center border-b border-slate-200 sticky top-0 z-50">
+            {/* Sticky Back Header */}
+            <div className="bg-white px-6 py-4 flex items-center border-b border-slate-200 sticky top-0 z-50 shadow-sm">
                 <button 
                     onClick={() => onNavigate('Home')} 
                     className="mr-4 p-2 hover:bg-slate-100 rounded-full transition-colors"
@@ -87,7 +104,7 @@ const SavedPage = ({ onNavigate }) => {
                             It looks like you haven't saved any buildings yet. Start exploring the campus map!
                         </p>
                         <button 
-                            onClick={() => onNavigate('Campus')} // ✅ Use onNavigate
+                            onClick={() => onNavigate('Campus')}
                             className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-blue-600 transition-all flex items-center gap-2 mx-auto"
                         >
                             Explore Map <ArrowRight size={18} />
@@ -97,12 +114,12 @@ const SavedPage = ({ onNavigate }) => {
                     <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
                         {savedItems.map((loc) => (
                             <div 
-                                key={loc._id} 
-                                onClick={() => onNavigate('Campus')} // ✅ Use onNavigate
+                                key={loc._id || loc.name} 
+                                onClick={() => onNavigate('Campus')}
                                 className="group relative bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 cursor-pointer overflow-hidden"
                             >
                                 <div className={`absolute top-6 right-6 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getCategoryStyle(loc.category)}`}>
-                                    {loc.category}
+                                    {loc.category || 'Location'}
                                 </div>
 
                                 <div className="flex items-start gap-5">

@@ -4,24 +4,31 @@ import {
 } from 'lucide-react';
 
 export default function ProfilePage({ onNavigate, onLogout }) {
-  // ✅ FIX: State to hold the REAL user data
   const [userData, setUserData] = useState({
     name: "Loading...",
     email: "...",
     role: "Student"
   });
 
-  // ✅ FIX: Load data from localStorage when the page opens
   useEffect(() => {
     const savedName = localStorage.getItem("userName");
     const savedEmail = localStorage.getItem("userEmail");
     const savedRole = localStorage.getItem("userRole");
 
     if (savedName && savedEmail) {
+      // ✅ ROLE NORMALIZER: 
+      // This prevents "admin" text from showing for users who aren't the real admin
+      let displayRole = "Student";
+      if (savedEmail === "admin@astu.edu.et" && savedRole?.toLowerCase() === 'admin') {
+        displayRole = "Administrator";
+      } else {
+        displayRole = "Student Explorer";
+      }
+
       setUserData({
         name: savedName,
         email: savedEmail,
-        role: savedRole || "Student"
+        role: displayRole
       });
     }
   }, []);
@@ -52,41 +59,43 @@ export default function ProfilePage({ onNavigate, onLogout }) {
       <div className="px-6 py-10 max-w-lg mx-auto">
         {/* Profile Card */}
         <div className="bg-white rounded-[2.5rem] shadow-xl shadow-blue-900/5 border border-slate-100 overflow-hidden mb-8">
-          <div className="h-32 bg-gradient-to-r from-blue-50 to-indigo-50" />
+          <div className="h-32 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-10" />
           <div className="px-8 pb-8 -mt-16 text-center">
             <div className="inline-block p-1 bg-white rounded-full shadow-lg mb-4">
               <div className="w-28 h-28 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden border-4 border-white">
                 <User size={60} className="text-slate-400" />
               </div>
             </div>
-            {/* ✅ Displays real name now */}
+            
             <h2 className="text-3xl font-[1000] text-slate-900 tracking-tighter capitalize">
                {userData.name}
             </h2>
-            <p className="text-blue-600 font-bold text-sm tracking-wide mt-1">ASTU Navigator Explorer</p>
+            <p className="text-blue-600 font-bold text-sm tracking-wide mt-1 uppercase italic">
+              {userData.role === "Administrator" ? "System Admin" : "ASTU Navigator Explorer"}
+            </p>
           </div>
         </div>
 
         {/* Info Items */}
         <div className="space-y-4">
+          {/* Email Item */}
           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-6">
             <div className="bg-blue-50 p-4 rounded-2xl text-blue-600">
               <Mail size={24} />
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Email Address</p>
-              {/* ✅ Displays real email */}
               <p className="font-bold text-slate-800">{userData.email}</p>
             </div>
           </div>
 
+          {/* Role Item */}
           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-6">
-            <div className="bg-purple-50 p-4 rounded-2xl text-purple-600">
+            <div className={`p-4 rounded-2xl ${userData.role === "Administrator" ? "bg-red-50 text-red-600" : "bg-purple-50 text-purple-600"}`}>
               <Shield size={24} />
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">User Role</p>
-              {/* ✅ Displays real role */}
               <p className="font-bold text-slate-800">{userData.role}</p>
             </div>
           </div>
