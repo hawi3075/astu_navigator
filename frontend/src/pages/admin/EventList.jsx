@@ -1,23 +1,57 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Trash2, Edit3, MapPin, Clock } from 'lucide-react';
+import { Calendar, Trash2, Edit3, MapPin, Clock, AlertCircle } from 'lucide-react';
 
 export default function EventList() {
     const [events, setEvents] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const fetchEvents = async () => {
-        const res = await fetch('http://localhost:8000/api/admin/events');
-        const data = await res.json();
-        setEvents(data);
+        try {
+            setLoading(true);
+            // ✅ FIX: Change port from 8000 to 5000 (Node.js Auth/DB Server)
+            const res = await fetch('http://localhost:5000/api/admin/events');
+            
+            if (!res.ok) throw new Error("Could not fetch events from server.");
+            
+            const data = await res.json();
+            
+            // ✅ FIX: Ensure data is an array before setting state
+            setEvents(Array.isArray(data) ? data : []);
+            setError(null);
+        } catch (err) {
+            console.error("Fetch Error:", err);
+            setError("Failed to load events. Check if Node.js server is running on port 5000.");
+        } finally {
+            setLoading(false);
+        }
     };
 
-    useEffect(() => { fetchEvents(); }, []);
+    useEffect(() => { 
+        fetchEvents(); 
+    }, []);
 
     const handleDelete = async (id) => {
         if (window.confirm("Delete this event?")) {
-            await fetch(`http://localhost:8000/api/admin/events/${id}`, { method: 'DELETE' });
-            fetchEvents(); // Refresh list
+            try {
+                // ✅ FIX: Match the port to 5000
+                await fetch(`http://localhost:5000/api/admin/events/${id}`, { 
+                    method: 'DELETE' 
+                });
+                fetchEvents(); // Refresh list
+            } catch (err) {
+                alert("Delete failed.");
+            }
         }
     };
+
+    if (loading) return <div className="p-10 text-center font-bold text-slate-400">Loading Events...</div>;
+
+    if (error) return (
+        <div className="bg-red-50 text-red-600 p-6 rounded-3xl flex items-center gap-3 font-bold text-sm">
+            <AlertCircle /> {error}
+        </div>
+    );
 
     return (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">

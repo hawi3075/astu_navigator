@@ -8,6 +8,7 @@ import SavedPage from './pages/SavedPage';
 import ProfilePage from './pages/ProfilePage';
 import Campus from './pages/Campus'; 
 import Navbar from './components/NavBar';
+import AdminDashboard from './pages/admin/AdminDashboard';
 
 function App() {
   const [currentStep, setCurrentStep] = useState('Landing'); 
@@ -15,14 +16,14 @@ function App() {
   const [activeTab, setActiveTab] = useState('Home');
   const [userRole, setUserRole] = useState(null);
 
-  // 1. Initial Load: Check for existing session
   useEffect(() => {
     const user = localStorage.getItem("userEmail");
     const role = localStorage.getItem("userRole");
+    
     if (user && role) {
       setIsLoggedIn(true);
       setUserRole(role);
-      setCurrentStep('Dashboard'); 
+      setCurrentStep('Dashboard');
     }
   }, []);
 
@@ -35,67 +36,56 @@ function App() {
   };
 
   const renderContent = () => {
-    // --- AUTHENTICATION FLOW ---
+    // --- 1. LOGIN/REGISTER FLOW ---
     if (!isLoggedIn) {
       if (currentStep === 'Login') {
         return (
           <LoginPage 
             onLoginSuccess={(data) => {
-              // ✅ Save to localStorage
-              localStorage.setItem("userRole", data.role || "Student");
+              // Store exact strings
+              localStorage.setItem("userRole", data.role); 
               localStorage.setItem("userEmail", data.email);
               localStorage.setItem("userName", data.full_name); 
               
-              // ✅ Update state immediately
-              setUserRole(data.role || "Student");
+              setUserRole(data.role);
               setIsLoggedIn(true);
-              setActiveTab('Home'); 
               setCurrentStep('Dashboard');
             }} 
             onNavigateToRegister={() => setCurrentStep('Register')} 
           />
         );
       }
-      
-      if (currentStep === 'Register') {
-        return <RegisterPage onNavigateToLogin={() => setCurrentStep('Login')} />;
-      }
-      
-      return (
-        <LandingPage 
-          onStart={(mode) => setCurrentStep(mode === 'register' ? 'Register' : 'Login')} 
-        />
-      );
+      if (currentStep === 'Register') return <RegisterPage onNavigateToLogin={() => setCurrentStep('Login')} />;
+      return <LandingPage onStart={(mode) => setCurrentStep(mode === 'register' ? 'Register' : 'Login')} />;
     }
 
-    // --- DASHBOARD NAVIGATION ---
-    // ✅ Ensure these cases match your NavBar.jsx onClick labels exactly
+    // --- 2. ADMIN VIEW ---
+    // Using .toLowerCase() makes it safer if your DB has "Admin" or "admin"
+    if (userRole?.toLowerCase() === 'admin') {
+       return <AdminDashboard onLogout={handleLogout} />;
+    }
+
+    // --- 3. STUDENT/USER TABS ---
     switch (activeTab) {
-      case 'Home': 
-        return <HomePage onNavigate={setActiveTab} />;
+      case 'Home': return <HomePage onNavigate={setActiveTab} />;
       case 'Explore': 
       case 'Map': 
         return <MapPage onNavigate={setActiveTab} />; 
-      case 'Campus': 
-        return <Campus onNavigate={setActiveTab} />; 
-      case 'Saved': 
-        return <SavedPage onNavigate={setActiveTab} />;
-      case 'Profile': 
-        return <ProfilePage onNavigate={setActiveTab} onLogout={handleLogout} />;
-      default: 
-        return <HomePage onNavigate={setActiveTab} />;
+      case 'Campus': return <Campus onNavigate={setActiveTab} />; 
+      case 'Saved': return <SavedPage onNavigate={setActiveTab} />;
+      case 'Profile': return <ProfilePage onNavigate={setActiveTab} onLogout={handleLogout} />;
+      default: return <HomePage onNavigate={setActiveTab} />;
     }
   };
 
   return (
     <div className={`flex flex-col bg-white font-sans ${isLoggedIn ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
-      {/* Main Container */}
       <div className={`flex-1 ${isLoggedIn ? 'overflow-y-auto pb-24' : ''}`}>
         {renderContent()}
       </div>
 
-      {/* ✅ Navbar: Visible for logged-in students/users */}
-      {isLoggedIn && userRole !== 'Admin' && (
+      {/* Show Navbar ONLY if logged in AND NOT an admin */}
+      {isLoggedIn && userRole?.toLowerCase() !== 'admin' && (
         <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
       )}
     </div>

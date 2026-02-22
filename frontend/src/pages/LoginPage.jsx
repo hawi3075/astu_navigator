@@ -14,7 +14,8 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/login', {
+      // ✅ FIX: Redirecting from port 8000 to port 5000 for Auth
+      const response = await fetch('http://localhost:5000/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -23,18 +24,20 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
       const data = await response.json();
 
       if (response.ok) {
-        // ✅ Match the fields returned by your FastAPI main.py
+        // ✅ Match the fields returned by your Node.js server.js
+        // These keys ensure the ProfilePage shows the real name, not "Hawi"
         localStorage.setItem("userEmail", data.email);
         localStorage.setItem("userRole", data.role); 
         localStorage.setItem("userName", data.full_name);
 
-        // ✅ Pass the user object back to App.jsx
         onLoginSuccess(data); 
       } else {
-        setError(data.detail || "Invalid credentials. Ensure the email is registered.");
+        // ✅ Handle dynamic error messages from your Node.js server
+        setError(data.message || "Invalid credentials. Ensure the email is registered.");
       }
     } catch (err) {
-      setError("Connection to server failed. Is the FastAPI server running on port 8000?");
+      // ✅ Error message updated to reflect the correct Auth port
+      setError("Connection failed. Ensure the Node.js Auth server is running on port 5000.");
     } finally {
       setIsLoading(false);
     }
@@ -63,7 +66,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="hawi@astu.edu.et" 
+                placeholder="yourname@astu.edu.et" 
                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 pl-12 outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium" 
                 required
               />
