@@ -26,17 +26,22 @@ const AdminDashboard = ({ onLogout }) => {
     const handleLocationSubmit = async (e) => {
         e.preventDefault();
         
-        // Prepare data: Ensure numbers are actually Numbers
+        // 🛠️ Ensure the payload matches the backend schema keys (name, lat, lng)
         const payload = {
             name: formData.name,
             lat: parseFloat(formData.lat),
             lng: parseFloat(formData.lng)
         };
 
+        console.log("Attempting to send:", payload);
+
         try {
             const response = await fetch('http://localhost:5000/api/admin/locations', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
                 body: JSON.stringify(payload),
             });
 
@@ -46,14 +51,16 @@ const AdminDashboard = ({ onLogout }) => {
                 setSubmitted(true);
                 setTimeout(() => setSubmitted(false), 3000);
                 setFormData({ name: '', lat: '', lng: '' });
+                console.log("Success:", result);
             } else {
-                // Check browser console (F12) to see exactly what Mongoose didn't like
-                console.error("Backend Validation Error:", result);
-                alert(`Error: ${result.error || "Server rejected the data"}`);
+                // If server is reached but returns 400/500
+                console.error("Server Error Response:", result);
+                alert(`Server Error: ${result.error || "Check backend console"}`);
             }
         } catch (error) {
-            console.error("Fetch Error:", error);
-            alert("Connection error to Backend (Port 5000)");
+            // If the server cannot be reached at all
+            console.error("Connection Error:", error);
+            alert("Connection error: Is the Node server actually running at http://localhost:5000?");
         }
     };
 
@@ -71,16 +78,16 @@ const AdminDashboard = ({ onLogout }) => {
                 setEventData({ title: '', date: '', location: '', description: '' });
                 setActiveTab('EventsList'); 
             } else {
-                alert("Failed to publish event.");
+                const errData = await response.json();
+                alert(`Failed: ${errData.error}`);
             }
         } catch (error) {
-            alert("Error publishing event.");
+            alert("Connection error while publishing event.");
         }
     };
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col pb-28">
-            {/* STICKY TOP NAV */}
             <header className="sticky top-0 z-50 bg-blue-600 p-5 text-white shadow-md flex justify-between items-center backdrop-blur-md bg-blue-600/90">
                 <div className="flex items-center gap-3">
                     <div className="bg-white/20 p-2 rounded-lg"><Building2 size={24} /></div>
@@ -91,10 +98,7 @@ const AdminDashboard = ({ onLogout }) => {
                 </button>
             </header>
 
-            {/* MAIN CONTENT */}
             <main className="flex-1 p-6 max-w-4xl mx-auto w-full">
-                
-                {/* 1. MANAGE LOCATIONS TAB */}
                 {activeTab === 'Manage' && (
                     <div className="bg-white rounded-[32px] shadow-xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-500">
                         <div className="bg-slate-900 p-6 text-white flex justify-between items-center">
@@ -107,8 +111,8 @@ const AdminDashboard = ({ onLogout }) => {
 
                         <form onSubmit={handleLocationSubmit} className="p-8 space-y-6">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Building/Place Name</label>
-                                <input type="text" placeholder="e.g. Library Wing A" value={formData.name} onChange={(e)=>setFormData({...formData, name:e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500/50 font-semibold" required />
+                                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Building Name</label>
+                                <input type="text" placeholder="e.g. Block 504" value={formData.name} onChange={(e)=>setFormData({...formData, name:e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500/50 font-semibold" required />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -127,9 +131,8 @@ const AdminDashboard = ({ onLogout }) => {
                     </div>
                 )}
 
-                {/* 2. EVENTS TAB */}
                 {activeTab === 'EventsList' && (
-                    <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="space-y-8">
                         <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100">
                             <h2 className="text-xl font-black text-slate-800 mb-6 uppercase flex items-center gap-2">
                                 <Calendar className="text-blue-600" /> Create Campus Event
@@ -137,8 +140,8 @@ const AdminDashboard = ({ onLogout }) => {
                             <form onSubmit={handleEventSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <input type="text" placeholder="Event Title" value={eventData.title} onChange={(e)=>setEventData({...eventData, title:e.target.value})} className="bg-slate-50 p-4 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50" required />
                                 <input type="date" value={eventData.date} onChange={(e)=>setEventData({...eventData, date:e.target.value})} className="bg-slate-50 p-4 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50" required />
-                                <input type="text" placeholder="Location (e.g. Stadium)" value={eventData.location} onChange={(e)=>setEventData({...eventData, location:e.target.value})} className="bg-slate-50 p-4 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50 md:col-span-2" required />
-                                <textarea placeholder="Event Description..." value={eventData.description} onChange={(e)=>setEventData({...eventData, description:e.target.value})} className="bg-slate-50 p-4 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50 md:col-span-2 h-24" />
+                                <input type="text" placeholder="Location" value={eventData.location} onChange={(e)=>setEventData({...eventData, location:e.target.value})} className="bg-slate-50 p-4 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50 md:col-span-2" required />
+                                <textarea placeholder="Description..." value={eventData.description} onChange={(e)=>setEventData({...eventData, description:e.target.value})} className="bg-slate-50 p-4 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50 md:col-span-2 h-24" />
                                 <button type="submit" className="bg-slate-900 text-white py-4 rounded-2xl font-bold uppercase tracking-widest md:col-span-2 flex items-center justify-center gap-2 hover:bg-black transition-all">
                                     <Send size={18}/> Publish Event
                                 </button>
@@ -153,7 +156,6 @@ const AdminDashboard = ({ onLogout }) => {
                 {activeTab === 'Stats' && <AdminStats />}
             </main>
 
-            {/* FLOATING BOTTOM NAV */}
             <nav className="fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl border border-slate-200 shadow-2xl rounded-[30px] p-2 flex justify-around items-center z-50">
                 {[
                     { id: 'Manage', icon: LayoutDashboard, label: 'Manage' },

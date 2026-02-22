@@ -1,26 +1,63 @@
 const express = require('express');
 const router = express.Router();
 const adminCtrl = require('../controllers/adminController');
+
+// Import Models directly for the inline routes
 const Event = require('../models/Event');
 const User = require('../models/User');
 const Location = require('../models/Location');
 
-// Stats & Users
-router.get('/stats', adminCtrl.getStats);
-router.get('/users', async (req, res) => res.json(await User.find({}, '-password')));
+// --- 📊 STATS & USERS ---
+// Uses the controller function we fixed earlier
+router.get('/stats', adminCtrl.getStats); 
+
+// Get all users (excluding passwords for security)
+router.get('/users', async (req, res) => {
+    try {
+        const users = await User.find({}, '-password');
+        res.json(users);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch users" });
+    }
+});
+
 router.delete('/users/:id', adminCtrl.deleteUser);
 
-// Locations
-router.get('/locations', async (req, res) => res.json(await Location.find()));
+// --- 📍 LOCATIONS ---
+// Get all campus points
+router.get('/locations', async (req, res) => {
+    try {
+        const locations = await Location.find().sort({ createdAt: -1 });
+        res.json(locations);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch locations" });
+    }
+});
+
+// Use the controller for adding/deleting (handles coordinate conversion)
 router.post('/locations', adminCtrl.addLocation);
 router.delete('/locations/:id', adminCtrl.deleteLocation);
 
-// Events
-router.get('/events', async (req, res) => res.json(await Event.find()));
+// --- 📅 EVENTS ---
+// Get all scheduled events
+router.get('/events', async (req, res) => {
+    try {
+        const events = await Event.find().sort({ date: 1 });
+        res.json(events);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch events" });
+    }
+});
+
+// Inline POST for events with error handling
 router.post('/events', async (req, res) => {
-  const event = new Event(req.body);
-  await event.save();
-  res.status(201).json(event);
+    try {
+        const event = new Event(req.body);
+        await event.save();
+        res.status(201).json(event);
+    } catch (err) {
+        res.status(400).json({ error: "Could not save event. Check date format." });
+    }
 });
 
 module.exports = router;

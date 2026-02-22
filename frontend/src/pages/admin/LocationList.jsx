@@ -1,21 +1,43 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Trash2, Home, School } from 'lucide-react';
+import { Trash2, Home, School } from 'lucide-react';
 
 export default function LocationList() {
     const [locations, setLocations] = useState([]);
 
     const fetchLocations = async () => {
-        const res = await fetch('http://localhost:8000/api/admin/locations_list'); // You'll add this route next
-        const data = await res.json();
-        setLocations(data);
+        try {
+            // Updated port to 5000 and route to /locations to match your adminRoutes.js
+            const res = await fetch('http://localhost:5000/api/admin/locations'); 
+            const data = await res.json();
+            
+            if (Array.isArray(data)) {
+                setLocations(data);
+            } else {
+                setLocations([]);
+            }
+        } catch (error) {
+            console.error("Error fetching locations:", error);
+        }
     };
 
     useEffect(() => { fetchLocations(); }, []);
 
     const handleDelete = async (id) => {
         if (window.confirm("Remove this building from the campus map?")) {
-            await fetch(`http://localhost:8000/api/admin/locations/${id}`, { method: 'DELETE' });
-            fetchLocations();
+            try {
+                // Updated port to 5000
+                const res = await fetch(`http://localhost:5000/api/admin/locations/${id}`, { 
+                    method: 'DELETE' 
+                });
+                
+                if (res.ok) {
+                    fetchLocations();
+                } else {
+                    alert("Failed to delete point.");
+                }
+            } catch (error) {
+                console.error("Delete error:", error);
+            }
         }
     };
 
@@ -23,7 +45,7 @@ export default function LocationList() {
         <div className="animate-in slide-in-from-bottom-5 duration-700 space-y-4">
             <h2 className="text-xl font-bold text-slate-800 px-2">Campus Map Points</h2>
             <div className="grid gap-4">
-                {locations.map((loc) => (
+                {locations.length > 0 ? locations.map((loc) => (
                     <div key={loc._id} className="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 flex justify-between items-center group hover:shadow-md transition-all">
                         <div className="flex items-center gap-4">
                             <div className="bg-blue-50 p-3 rounded-2xl text-blue-600">
@@ -32,7 +54,8 @@ export default function LocationList() {
                             <div>
                                 <h3 className="font-bold text-slate-700">{loc.name}</h3>
                                 <p className="text-[10px] text-slate-400 font-mono font-bold tracking-tight">
-                                    {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)}
+                                    {/* Using optional chaining ?. and OR fallback to prevent undefined errors */}
+                                    {loc.lat?.toFixed(4) || "0.0000"}, {loc.lng?.toFixed(4) || "0.0000"}
                                 </p>
                             </div>
                         </div>
@@ -43,7 +66,9 @@ export default function LocationList() {
                             <Trash2 size={20} />
                         </button>
                     </div>
-                ))}
+                )) : (
+                    <p className="text-center py-10 text-slate-400">No campus points found.</p>
+                )}
             </div>
         </div>
     );

@@ -5,7 +5,7 @@ const LocationSchema = new mongoose.Schema({
     type: String, 
     required: [true, 'Building name is required'],
     trim: true,
-    unique: true 
+    unique: true // ✅ This automatically creates the index for you
   },
   lat: { 
     type: Number, 
@@ -29,7 +29,7 @@ const LocationSchema = new mongoose.Schema({
   }
 });
 
-// Create an index for faster searching by name
-LocationSchema.index({ name: 1 });
+// 🗑️ REMOVED: LocationSchema.index({ name: 1 }); 
+// (Removing this stops the "Duplicate schema index" warning)
 
 module.exports = mongoose.model('Location', LocationSchema);
