@@ -1,61 +1,72 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User'); 
+const mongoose = require('mongoose');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // ------------------------------------------------------------------
-// 📍 1. GET SAVED LOCATIONS (The Fix for your 404 Console Error)
+// 📍 1. GET SAVED LOCATIONS (Matches your 'saved_locations' collection)
 // ------------------------------------------------------------------
 router.get('/saved-locations/:email', async (req, res) => {
     try {
-        const { email } = req.params;
-        // Search using case-insensitive email
-        const user = await User.findOne({ email: email.toLowerCase() });
+        const email = req.params.email.toLowerCase().trim();
+        
+        // Directly query the collection shown in your screenshot
+        const locations = await mongoose.connection.collection('saved_locations')
+            .find({ user_email: email })
+            .toArray();
 
-        if (!user) {
-            console.log(`User not found for email: ${email}`);
-            return res.status(404).json({ error: "User not found" });
-        }
+        // Format the data so the frontend 'SavedPage' can read it
+        const formattedData = locations.map(loc => ({
+            _id: loc._id,
+            name: loc.location_name,
+            category: "Campus Spot", // Default since it's missing in your DB
+            savedAt: loc._id.getTimestamp() 
+        }));
 
-        // Send back the savedPoints array
-        res.status(200).json(user.savedPoints || []);
+        console.log(`✅ Found ${formattedData.length} spots for: ${email}`);
+        res.status(200).json(formattedData);
     } catch (err) {
-        console.error("Fetch Saved Locations Error:", err);
+        console.error("❌ Fetch Error:", err);
         res.status(500).json({ error: "Server error fetching locations" });
     }
 });
 
 // ------------------------------------------------------------------
-// 📍 2. SAVE A NEW LOCATION
+// 📍 2. SAVE A NEW LOCATION (Inserts into 'saved_locations')
 // ------------------------------------------------------------------
 router.post('/save-location', authMiddleware, async (req, res) => {
     try {
         const { email, location } = req.body;
         
-        // Use findOneAndUpdate with $addToSet to avoid duplicates in the array
-        const updatedUser = await User.findOneAndUpdate(
-            { email: email.toLowerCase() },
-            { 
-                $addToSet: { 
-                    savedPoints: {
-                        name: location.name,
-                        category: location.category || "Campus Spot",
-                        coordinates: location.coordinates,
-                        savedAt: new Date() 
-                    } 
-                } 
-            },
-            { new: true } 
-        );
+        if (!email || !location?.name) {
+            return res.status(400).json({ error: "Email and Location Name required" });
+        }
 
-        if (!updatedUser) return res.status(404).json({ error: "User not found" });
+        const cleanEmail = email.toLowerCase().trim();
+
+        // Prevent duplicate saves for the same building for the same user
+        const existing = await mongoose.connection.collection('saved_locations').findOne({
+            user_email: cleanEmail,
+            location_name: location.name
+        });
+
+        if (existing) {
+            return res.status(400).json({ error: "Location already saved" });
+        }
+
+        // Insert into the collection exactly as seen in your screenshot
+        const result = await mongoose.connection.collection('saved_locations').insertOne({
+            user_email: cleanEmail,
+            location_name: location.name,
+            created_at: new Date()
+        });
 
         res.status(201).json({ 
             message: "Saved successfully", 
-            count: updatedUser.savedPoints.length 
+            insertedId: result.insertedId 
         });
     } catch (err) {
-        console.error("Save Error:", err);
+        console.error("❌ Save Error:", err);
         res.status(500).json({ error: "Failed to save location" });
     }
 });
@@ -65,26 +76,17 @@ router.post('/save-location', authMiddleware, async (req, res) => {
 // ------------------------------------------------------------------
 router.delete('/saved-points/:id', authMiddleware, async (req, res) => {
     try {
-        // req.user.id comes from your authMiddleware JWT decode
-        const user = await User.findById(req.user.id);
-        
-        if (!user) return res.status(404).json({ error: "User not found" });
+        const result = await mongoose.connection.collection('saved_locations').deleteOne({
+            _id: new mongoose.Types.ObjectId(req.params.id)
+        });
 
-        const initialLength = user.savedPoints.length;
-        
-        // Remove the specific point by ID
-        user.savedPoints = user.savedPoints.filter(point => 
-            point._id.toString() !== req.params.id
-        );
-
-        if (user.savedPoints.length === initialLength) {
+        if (result.deletedCount === 0) {
             return res.status(404).json({ error: "Point not found" });
         }
 
-        await user.save();
         res.status(200).json({ message: "Removed successfully" });
     } catch (err) {
-        console.error("Delete Error:", err);
+        console.error("❌ Delete Error:", err);
         res.status(500).json({ error: "Delete failed" });
     }
 });
