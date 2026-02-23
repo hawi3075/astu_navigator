@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Trash2, Calendar, MapPin, Loader2, CheckCircle2 } from 'lucide-react';
+import { Send, Trash2, Calendar, MapPin, Loader2 } from 'lucide-react';
 
 export default function EventList() {
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 1. Fetch Events
+  // 📝 1. Added State for the Form
+  const [formData, setFormData] = useState({
+    title: '',
+    date: '',
+    location: '',
+    description: ''
+  });
+
   const fetchEvents = async () => {
     try {
       setIsLoading(true);
@@ -26,26 +33,51 @@ export default function EventList() {
     fetchEvents();
   }, []);
 
-  // ✅ 2. FIXED DELETE LOGIC
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this event?")) return;
+  // 🚀 2. FIXED PUBLISH LOGIC
+  const handlePublish = async (e) => {
+    e.preventDefault();
+    
+    // Basic Validation
+    if (!formData.title || !formData.date || !formData.location || !formData.description) {
+      alert("Please fill in all fields");
+      return;
+    }
 
+    setIsSubmitting(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/events/${id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
+      const response = await fetch('http://localhost:5000/api/admin/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
       });
 
       if (response.ok) {
-        // Remove from UI immediately so it feels fast
-        setEvents(events.filter(event => event._id !== id));
+        alert("✅ Event Published Successfully!");
+        setFormData({ title: '', date: '', location: '', description: '' }); // Clear form
+        fetchEvents(); // Refresh the list
       } else {
         const errorData = await response.json();
-        alert(`Error: ${errorData.error || 'Failed to delete'}`);
+        alert(`Error: ${errorData.error || 'Failed to publish'}`);
       }
     } catch (error) {
-      console.error("Delete request failed:", error);
-      alert("Server is not responding. Check your backend.");
+      console.error("Publish request failed:", error);
+      alert("Server is not responding.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this event?")) return;
+    try {
+      const response = await fetch(`http://localhost:5000/api/admin/events/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setEvents(events.filter(event => event._id !== id));
+      }
+    } catch (error) {
+      console.error("Delete failed:", error);
     }
   };
 
@@ -58,36 +90,51 @@ export default function EventList() {
           Create Campus Event
         </h2>
 
-        <form className="space-y-4">
+        {/* ✅ FIXED: Added onSubmit handler */}
+        <form onSubmit={handlePublish} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input 
               type="text" 
               placeholder="Event Title" 
+              value={formData.title}
+              onChange={(e) => setFormData({...formData, title: e.target.value})}
               className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500/20 font-medium"
+              required
             />
             <input 
               type="date" 
+              value={formData.date}
+              onChange={(e) => setFormData({...formData, date: e.target.value})}
               className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500/20 font-medium text-slate-400"
+              required
             />
           </div>
           
           <input 
             type="text" 
             placeholder="Location (e.g., Block 508)" 
+            value={formData.location}
+            onChange={(e) => setFormData({...formData, location: e.target.value})}
             className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500/20 font-medium"
+            required
           />
 
           <textarea 
             placeholder="Description..." 
             rows="3"
+            value={formData.description}
+            onChange={(e) => setFormData({...formData, description: e.target.value})}
             className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500/20 resize-none font-medium"
+            required
           ></textarea>
 
           <button 
-            type="button"
-            className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 hover:bg-black active:scale-[0.98] transition-all"
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 hover:bg-black active:scale-[0.98] transition-all disabled:opacity-50"
           >
-            <Send size={18} /> Publish Event
+            {isSubmitting ? <Loader2 className="animate-spin" /> : <Send size={18} />}
+            {isSubmitting ? "Publishing..." : "Publish Event"}
           </button>
         </form>
       </div>
@@ -116,15 +163,13 @@ export default function EventList() {
                   <h4 className="font-bold text-slate-800 leading-none">{event.title}</h4>
                   <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-tight text-slate-400">
                     <span className="flex items-center gap-1.5"><MapPin size={12} className="text-blue-500"/> {event.location}</span>
-                    <span className="flex items-center gap-1.5"><Calendar size={12} className="text-slate-400"/> {new Date(event.date).toLocaleDateString()}</span>
+                    <span className="flex items-center gap-1.5"><Calendar size={12} className="text-slate-400"/> {event.date}</span>
                   </div>
                 </div>
                 
-                {/* ✅ FIXED BUTTON: Added onClick handler */}
                 <button 
                   onClick={() => handleDelete(event._id)}
-                  className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all group-hover:text-slate-400"
-                  title="Delete Event"
+                  className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                 >
                   <Trash2 size={20} />
                 </button>
@@ -133,9 +178,6 @@ export default function EventList() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-slate-50 rounded-[24px]">
-            <div className="bg-slate-50 p-4 rounded-full mb-4">
-              <Calendar size={32} className="text-slate-200" />
-            </div>
             <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">No events published yet</p>
           </div>
         )}
