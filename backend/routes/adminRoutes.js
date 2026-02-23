@@ -46,23 +46,38 @@ router.get('/events', async (req, res) => {
     }
 });
 
-// 2. Add Event
+// 2. ✅ FIXED: Add Event (Publish Event)
 router.post('/events', async (req, res) => {
+    console.log("📥 Incoming Event Data:", req.body); // Check your terminal to see if data arrives
     try {
-        const event = new Event(req.body);
+        const { title, date, location, description } = req.body;
+
+        // Validation: Ensure all fields from your UI are present
+        if (!title || !date || !location || !description) {
+            return res.status(400).json({ error: "All fields (title, date, location, description) are required." });
+        }
+
+        const event = new Event({
+            title,
+            date,
+            location,
+            description
+        });
+
         await event.save();
-        res.status(201).json(event);
+        console.log("✅ Event saved to DB");
+        res.status(201).json({ success: true, message: "Event published successfully!", event });
     } catch (err) {
-        res.status(400).json({ error: "Could not save event." });
+        console.error("❌ Publish Error:", err);
+        res.status(400).json({ error: "Could not save event. Check if your Event model matches these fields." });
     }
 });
 
-// 3. ✅ DELETE EVENT (This fixes your 404 & JSON error)
+// 3. ✅ DELETE EVENT
 router.delete('/events/:id', async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Check if ID is valid format to prevent server crash
         if (!id.match(/^[0-9a-fA-F]{24}$/)) {
             return res.status(400).json({ error: "Invalid ID format" });
         }
@@ -73,7 +88,6 @@ router.delete('/events/:id', async (req, res) => {
             return res.status(404).json({ error: "Event not found" });
         }
         
-        // We MUST return JSON so the frontend doesn't see a "SyntaxError"
         return res.status(200).json({ success: true, message: "Event deleted" });
 
     } catch (err) {

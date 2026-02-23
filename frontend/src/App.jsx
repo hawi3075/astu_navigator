@@ -16,14 +16,13 @@ function App() {
   const [activeTab, setActiveTab] = useState('Home');
   const [userRole, setUserRole] = useState(null);
 
-  // 🔄 Session Restoration with Strict Validation
+  // 🔄 Session Restoration
   useEffect(() => {
     const savedRole = localStorage.getItem("userRole");
     const savedEmail = localStorage.getItem("userEmail");
     
     if (savedEmail && savedRole) {
       setIsLoggedIn(true);
-      // Ensure the role is verified against the admin email
       if (savedEmail === "admin@astu.edu.et" && savedRole.toLowerCase() === 'admin') {
         setUserRole('admin');
       } else {
@@ -32,7 +31,7 @@ function App() {
     }
   }, []);
 
-  // 🚪 Complete Cleanup on Logout
+  // 🚪 Logout
   const handleLogout = () => {
     localStorage.clear();
     setIsLoggedIn(false);
@@ -47,18 +46,15 @@ function App() {
       if (currentStep === 'Login') {
         return (
           <LoginPage 
+            // ⬅️ Navigate back to Landing
+            onBack={() => setCurrentStep('Landing')}
             onLoginSuccess={(data) => {
               const user = data.user || data; 
-              
-              // 🛡️ SHIELD: Only permit 'admin' role if the email matches yours
               let role = (user.role || 'user').toLowerCase();
               if (user.email !== "admin@astu.edu.et" && role === 'admin') {
-                role = 'user'; // Force demotion if email doesn't match
+                role = 'user'; 
               }
-
-              // 🔥 FORCE CLEAR BEFORE SAVING
               localStorage.clear();
-
               localStorage.setItem("userRole", role); 
               localStorage.setItem("userEmail", user.email);
               localStorage.setItem("userName", user.name || "User"); 
@@ -72,12 +68,17 @@ function App() {
         );
       }
       if (currentStep === 'Register') {
-        return <RegisterPage onNavigateToLogin={() => setCurrentStep('Login')} />;
+        return (
+          <RegisterPage 
+            onBack={() => setCurrentStep('Landing')}
+            onNavigateToLogin={() => setCurrentStep('Login')} 
+          />
+        );
       }
       return <LandingPage onStart={(mode) => setCurrentStep(mode === 'register' ? 'Register' : 'Login')} />;
     }
 
-    // 2️⃣ ADMIN VIEW (Strictly filtered)
+    // 2️⃣ ADMIN VIEW
     if (userRole === 'admin' && localStorage.getItem("userEmail") === "admin@astu.edu.et") {
        return <AdminDashboard onLogout={handleLogout} />;
     }
@@ -96,12 +97,10 @@ function App() {
 
   return (
     <div className="min-h-screen bg-white font-sans flex flex-col overflow-y-auto">
-      {/* Scrollable area adjusts based on user type */}
       <div className={`flex-1 w-full ${isLoggedIn && userRole !== 'admin' ? 'pb-24' : ''}`}>
         {renderContent()}
       </div>
 
-      {/* Navbar only appears for students */}
       {isLoggedIn && userRole !== 'admin' && (
         <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
       )}

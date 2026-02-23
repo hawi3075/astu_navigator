@@ -2,30 +2,42 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 
-// This handles POST to http://localhost:5000/api/auth/login
-router.post('/login', async (req, res) => {
+// This matches: POST http://localhost:5000/api/auth/register
+router.post('/register', async (req, res) => {
+    console.log("📩 Received registration request for:", req.body.email);
     try {
-        const { email, password } = req.body;
-        console.log("📥 Login attempt:", email); // Verify this appears in your terminal
+        const { name, email, password } = req.body;
+        const cleanEmail = email.toLowerCase().trim();
 
-        const user = await User.findOne({ email });
+        const existingUser = await User.findOne({ email: cleanEmail });
+        if (existingUser) {
+            return res.status(400).json({ detail: "This email is already registered." });
+        }
 
-        if (user && user.password === password) {
-            return res.status(200).json({ 
-                message: "Login successful", 
-                user: { 
-                    name: user.name, 
-                    email: user.email,
-                    role: user.role || 'admin'
-                } 
-            });
-        } 
+        const newUser = new User({ name, email: cleanEmail, password });
+        await newUser.save();
         
-        return res.status(401).json({ error: "Invalid email or password" });
+        console.log("✅ User saved successfully");
+        res.status(201).json({ message: "Registration Successful!" });
     } catch (err) {
-        console.error("❌ Server Login Error:", err);
-        res.status(500).json({ error: "Internal server error" });
+        console.error("❌ Server Error:", err);
+        res.status(500).json({ detail: "Database error during registration." });
     }
 });
 
-module.exports = router;
+// This matches: POST http://localhost:5000/api/auth/login
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const user = await User.findOne({ email: email.toLowerCase().trim(), password });
+
+        if (!user) {
+            return res.status(401).json({ detail: "Invalid email or password." });
+        }
+        res.json({ name: user.name, email: user.email, role: user.role });
+    } catch (err) {
+        res.status(500).json({ detail: "Login failed." });
+    }
+});
+
+module.exports = router; // <--- MUST BE HERE
