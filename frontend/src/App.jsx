@@ -15,6 +15,8 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeTab, setActiveTab] = useState('Home');
   const [userRole, setUserRole] = useState(null);
+  // ✅ 1. Added userEmail state to pass to MapPage
+  const [userEmail, setUserEmail] = useState(localStorage.getItem("userEmail"));
 
   // 🔄 Session Restoration
   useEffect(() => {
@@ -23,6 +25,7 @@ function App() {
     
     if (savedEmail && savedRole) {
       setIsLoggedIn(true);
+      setUserEmail(savedEmail); // ✅ Update state from localStorage
       if (savedEmail === "admin@astu.edu.et" && savedRole.toLowerCase() === 'admin') {
         setUserRole('admin');
       } else {
@@ -36,17 +39,16 @@ function App() {
     localStorage.clear();
     setIsLoggedIn(false);
     setUserRole(null);
+    setUserEmail(null); // ✅ Clear email state
     setCurrentStep('Landing');
     setActiveTab('Home');
   };
 
   const renderContent = () => {
-    // 1️⃣ UNAUTHENTICATED USERS
     if (!isLoggedIn) {
       if (currentStep === 'Login') {
         return (
           <LoginPage 
-            // ⬅️ Navigate back to Landing
             onBack={() => setCurrentStep('Landing')}
             onLoginSuccess={(data) => {
               const user = data.user || data; 
@@ -60,6 +62,7 @@ function App() {
               localStorage.setItem("userName", user.name || "User"); 
               if(data.token) localStorage.setItem("token", data.token);
 
+              setUserEmail(user.email); // ✅ 2. Store email in state
               setUserRole(role);
               setIsLoggedIn(true);
             }} 
@@ -78,8 +81,7 @@ function App() {
       return <LandingPage onStart={(mode) => setCurrentStep(mode === 'register' ? 'Register' : 'Login')} />;
     }
 
-    // 2️⃣ ADMIN VIEW
-    if (userRole === 'admin' && localStorage.getItem("userEmail") === "admin@astu.edu.et") {
+    if (userRole === 'admin' && userEmail === "admin@astu.edu.et") {
        return <AdminDashboard onLogout={handleLogout} />;
     }
 
@@ -87,7 +89,9 @@ function App() {
     switch (activeTab) {
       case 'Home': return <HomePage onNavigate={setActiveTab} />;
       case 'Explore': 
-      case 'Map': return <MapPage onNavigate={setActiveTab} />; 
+      case 'Map': 
+        // ✅ 3. Passed userEmail prop here to fix the alert
+        return <MapPage onNavigate={setActiveTab} userEmail={userEmail} />; 
       case 'Campus': return <Campus onNavigate={setActiveTab} />; 
       case 'Saved': return <SavedPage onNavigate={setActiveTab} />;
       case 'Profile': return <ProfilePage onNavigate={setActiveTab} onLogout={handleLogout} />;

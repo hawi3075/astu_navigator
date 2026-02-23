@@ -6,6 +6,7 @@ const dotenv = require('dotenv');
 // Import Routes
 const adminRoutes = require('./routes/adminRoutes');
 const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes'); // ✅ 1. Added this import
 
 dotenv.config();
 const app = express();
@@ -15,12 +16,12 @@ app.use(cors({
     origin: "http://localhost:5173",
     credentials: true
 }));
-app.use(express.json()); // Essential for parsing the email/password from your frontend
+app.use(express.json()); 
 
 // --- 🔗 ROUTES ---
-// This mounts your authRoutes at http://localhost:5000/api/auth
 app.use('/api/auth', authRoutes); 
 app.use('/api/admin', adminRoutes);
+app.use('/api', userRoutes); // ✅ 2. Added this to handle /api/saved-points and locations
 
 // Test Route
 app.get('/', (req, res) => {
