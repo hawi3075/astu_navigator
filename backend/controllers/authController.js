@@ -1,33 +1,44 @@
+const User = require('../models/User'); // Ensure this path to your model is correct
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs'); // Needed to compare hashed passwords
+
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // 1. Find user and explicitly include the role field
-        const user = await User.findOne({ email });
-
-        // 2. Check if user exists and password matches
-        if (!user || !(await user.comparePassword(password))) {
-            return res.status(401).json({ 
-                error: "Invalid email or password" 
-            });
+        // 1. Find the user
+        const user = await User.findOne({ email: email.toLowerCase().trim() });
+        if (!user) {
+            return res.status(400).json({ message: "Invalid Credentials" });
         }
 
-        // 3. Normalize the role 
-        // Force 'user' if the database field is empty or missing
-        const userRole = user.role ? user.role.toLowerCase() : 'user';
+        // 2. Verify password logic (CRITICAL STEP)
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid Credentials" });
+        }
 
-        // 4. Send the response
-        return res.status(200).json({
-            token: generateToken(user._id),
-            role: userRole, 
-            name: user.name,
-            email: user.email
+        // 3. Generate the Token
+        // This ensures process.env.JWT_SECRET is used from your .env file
+        const token = jwt.sign(
+            { id: user._id, role: user.role, email: user.email },
+            process.env.JWT_SECRET, 
+            { expiresIn: '24h' }
+        );
+
+        // 4. Send it back in the response
+        // This structure allows App.jsx to see 'data.token'
+        res.status(200).json({
+            message: "Login successful",
+            token: token, 
+            user: {
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
         });
-
     } catch (err) {
-        console.error("Login Controller Error:", err);
-        return res.status(500).json({ 
-            error: "Internal server error. Please try again." 
-        });
+        console.error("Login Error:", err);
+        res.status(500).json({ message: "Server Error" });
     }
 };

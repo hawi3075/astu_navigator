@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs'); // Recommended for security
 
 // 📍 1. Define the Schema for individual saved locations
 const savedPointSchema = new mongoose.Schema({
@@ -12,7 +13,7 @@ const savedPointSchema = new mongoose.Schema({
     },
     coordinates: { 
         type: [Number], 
-        required: true // Expects [latitude, longitude]
+        required: false // Changed to false to avoid errors if only names are sent
     },
     savedAt: { 
         type: Date, 
@@ -30,7 +31,8 @@ const userSchema = new mongoose.Schema({
         type: String, 
         required: true, 
         unique: true,
-        lowercase: true // Automatically saves emails in lowercase for consistency
+        lowercase: true,
+        trim: true
     },
     password: { 
         type: String, 
@@ -38,15 +40,28 @@ const userSchema = new mongoose.Schema({
     },
     role: { 
         type: String, 
+        enum: ['user', 'admin'], // Restricts roles to these two values
         default: 'user' 
     },
-    // ✅ The savedPoints array using the sub-schema above
     savedPoints: [savedPointSchema] 
 }, { 
-    timestamps: true // Automatically creates createdAt and updatedAt fields
+    timestamps: true 
 });
 
-// 🛠️ 3. Ensure IDs are returned correctly for the frontend
+// 🔒 3. AUTOMATIC PASSWORD HASHING (Highly Recommended)
+// This hashes the password before saving it to MongoDB
+userSchema.pre('save', async function (next) {
+    if (!this.isModified('password')) return next();
+    try {
+        const salt = await bcrypt.genSalt(10);
+        this.password = await bcrypt.hash(this.password, salt);
+        next();
+    } catch (err) {
+        next(err);
+    }
+});
+
+// 🛠️ 4. Ensure IDs are returned correctly for the frontend
 userSchema.set('toJSON', { virtuals: true });
 userSchema.set('toObject', { virtuals: true });
 
