@@ -124,33 +124,50 @@ async def chat_endpoint(request: ChatRequest):
     locations = await db.locations.find({}).to_list(length=200)
     names = [loc["name"] for loc in locations]
     
-    # 1. Fuzzy match check (Quick response for direct building names)
+    # Helper to safely extract coordinates regardless of naming convention
+    def get_coords(loc_obj):
+        # Checks for 'latitude' or 'lat' or 'coordinates' array
+        lat = loc_obj.get("latitude") or loc_obj.get("lat")
+        lng = loc_obj.get("longitude") or loc_obj.get("lng")
+        
+        if lat is None and "coordinates" in loc_obj:
+            lat = loc_obj["coordinates"][0]
+            lng = loc_obj["coordinates"][1]
+        return lat, lng
+
+    # 1. Fuzzy match check
     if names:
         best_match, score = process.extractOne(user_msg, names)
         if score > 85:
             found = next(l for l in locations if l["name"] == best_match)
+            lat, lng = get_coords(found)
             return {
                 "reply": f"📍 Moving map to **{found['name']}**.",
-                "target": {"lat": found["latitude"], "lng": found["longitude"], "name": found["name"]}
+                "target": {"lat": lat, "lng": lng, "name": found["name"]}
             }
 
-    # 2. AI completion (For general chat or complex queries)
+    # 2. AI completion
     try:
         completion = gro_client.chat.completions.create(
             messages=[
                 {"role": "system", "content": f"You are the ASTU Navigator AI. Help students find buildings. Campus buildings available: {', '.join(names)}. Always mention the specific building name if found."},
                 {"role": "user", "content": user_msg}
             ],
-            model="llama-3.3-70b-versatile", # ✅ UPDATED: Used a current active model
+            model="llama-3.3-70b-versatile",
         )
         ai_reply = completion.choices[0].message.content
         
-        # Cross-reference AI reply with DB names to trigger map movement
+        # Cross-reference AI reply with DB names
         ai_match = next((l for l in locations if l["name"].lower() in ai_reply.lower()), None)
         
+        target_data = None
+        if ai_match:
+            lat, lng = get_coords(ai_match)
+            target_data = {"lat": lat, "lng": lng, "name": ai_match["name"]}
+
         return {
             "reply": ai_reply,
-            "target": {"lat": ai_match["latitude"], "lng": ai_match["longitude"], "name": ai_match["name"]} if ai_match else None
+            "target": target_data
         }
     except Exception as e:
         print(f"Groq API Error: {e}")
