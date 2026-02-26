@@ -73,7 +73,7 @@ router.post('/events', async (req, res) => {
     }
 });
 
-// 3. ✅ DELETE EVENT
+// 3. ✅ DELETE EVENTS
 router.delete('/events/:id', async (req, res) => {
     try {
         const { id } = req.params;
