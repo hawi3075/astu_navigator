@@ -1,44 +1,55 @@
-const User = require('../models/User'); // Ensure this path to your model is correct
+const User = require('../models/User'); 
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs'); // Needed to compare hashed passwords
+const bcrypt = require('bcryptjs'); 
 
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // 1. Find the user
-        const user = await User.findOne({ email: email.toLowerCase().trim() });
-        if (!user) {
-            return res.status(400).json({ message: "Invalid Credentials" });
+        // 1. Basic Validation: Ensure fields aren't empty
+        if (!email || !password) {
+            return res.status(400).json({ message: "Please provide both email and password" });
         }
 
-        // 2. Verify password logic (CRITICAL STEP)
+        // 2. Find the user (Case-insensitive email handling)
+        // We use .toLowerCase() because registration usually stores emails in lowercase
+        const user = await User.findOne({ email: email.toLowerCase().trim() });
+        
+        // Security Tip: Use a generic "Invalid Credentials" message for both email and password failures
+        if (!user) {
+            return res.status(401).json({ message: "Invalid email or password" });
+        }
+
+        // 3. Verify password (Compare plain text input with hashed DB password)
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(400).json({ message: "Invalid Credentials" });
+            return res.status(401).json({ message: "Invalid email or password" });
         }
 
-        // 3. Generate the Token
-        // This ensures process.env.JWT_SECRET is used from your .env file
+        // 4. Generate the JWT Token
+        // payload includes id, role, and email
         const token = jwt.sign(
             { id: user._id, role: user.role, email: user.email },
             process.env.JWT_SECRET, 
-            { expiresIn: '24h' }
+            { expiresIn: '24h' } 
         );
 
-        // 4. Send it back in the response
-        // This structure allows App.jsx to see 'data.token'
+        // 5. Send Response
+        // Including 'success: true' helps your React 'if (data.success)' logic
         res.status(200).json({
-            message: "Login successful",
+            success: true,
+            message: "Welcome back!",
             token: token, 
             user: {
+                id: user._id,
                 name: user.name,
                 email: user.email,
                 role: user.role
             }
         });
+
     } catch (err) {
-        console.error("Login Error:", err);
-        res.status(500).json({ message: "Server Error" });
+        console.error("Critical Login Error:", err.message);
+        res.status(500).json({ success: false, message: "Internal Server Error" });
     }
 };
