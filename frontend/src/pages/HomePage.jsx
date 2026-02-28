@@ -2,7 +2,7 @@ import React from 'react';
 import { Map, Bookmark, User, Bell, LayoutGrid, ChevronRight } from 'lucide-react';
 
 const HomePage = ({ onNavigate, user }) => {
-  // ✅ Get the name from the user prop or localStorage as a backup
+  // ✅ Prioritizes user prop, then localStorage name, then fallback
   const displayName = user?.full_name || localStorage.getItem("userName") || "Student";
 
   const menuItems = [
@@ -70,7 +70,6 @@ const HomePage = ({ onNavigate, user }) => {
                 e.preventDefault();
                 item.action();
               }}
-              // Added staggered animation delay for a premium feel
               style={{ animationDelay: `${index * 100}ms` }}
               className="w-full bg-white p-6 rounded-[2.5rem] shadow-xl shadow-blue-900/5 border border-slate-100 flex items-center justify-between group hover:border-blue-400 hover:shadow-blue-200/20 transition-all active:scale-[0.96] animate-in fade-in slide-in-from-bottom-4"
             >

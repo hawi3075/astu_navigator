@@ -18,12 +18,15 @@ const RegisterPage = ({ onNavigateToLogin, onBack }) => {
 
     setLoading(true);
     try {
-      // Points to your Node.js auth route
-      const res = await axios.post("http://localhost:5000/api/auth/register", formData);
+      // ✅ Updated: Points to your live Node.js auth route on Render
+      const res = await axios.post("https://astu-navigator-api.onrender.com/api/auth/register", formData);
+      
       alert(res.data.message || "Registration Successful!");
       onNavigateToLogin(); // Move user to login screen on success
     } catch (err) {
-      alert(err.response?.data?.detail || "Registration failed. Email might already exist.");
+      // Improved error messaging
+      const errorMsg = err.response?.data?.message || err.response?.data?.detail || "Registration failed. Email might already exist.";
+      alert(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -46,8 +49,8 @@ const RegisterPage = ({ onNavigateToLogin, onBack }) => {
                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">CREATE ACCOUNT</h1>
-          <p className="opacity-80 text-sm mt-1">JOIN THE ASTU SPATIAL NETWORK</p>
+          <h1 className="text-3xl font-bold tracking-tight uppercase">Create Account</h1>
+          <p className="opacity-80 text-sm mt-1 uppercase">Join the ASTU Spatial Network</p>
         </div>
 
         <form onSubmit={handleRegister} className="p-8 space-y-5">
@@ -96,14 +99,14 @@ const RegisterPage = ({ onNavigateToLogin, onBack }) => {
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg disabled:opacity-50"
+            className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg disabled:opacity-50 active:scale-[0.98]"
           >
             {loading ? "CREATING ACCOUNT..." : "REGISTER NOW →"}
           </button>
         </form>
 
         <div className="p-6 text-center border-t border-gray-100">
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-sm">
             ALREADY HAVE AN ACCOUNT? 
             <span 
               onClick={onNavigateToLogin}

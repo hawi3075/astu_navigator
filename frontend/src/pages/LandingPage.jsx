@@ -34,12 +34,14 @@ export default function LandingPage({ onStart }) {
         </div>
       </nav>
 
-      {/* 2. HERO SECTION - FIX: Removed overflow-hidden and h-screen */}
+      {/* 2. HERO SECTION */}
       <section className="relative w-full min-h-screen flex items-center justify-center pt-20">
+        {/* Note: Ensure main.png.jpg is in your /public folder for this to render */}
         <img 
           src="/main.png.jpg" 
           alt="ASTU Main Gate" 
           className="absolute inset-0 w-full h-full object-cover z-0"
+          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1541339907198-e08756ebafe3?auto=format&fit=crop&w=1920&q=80'; }} // Fallback if image fails
         />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/30 to-slate-900/90 z-10"></div>
         
@@ -49,7 +51,7 @@ export default function LandingPage({ onStart }) {
             <span className="text-blue-100 text-[10px] font-black uppercase tracking-[0.2em]">Next-Gen Campus Intelligence</span>
           </div>
 
-          <h1 className="text-white text-6xl lg:text-[110px] font-[1000] uppercase tracking-tighter leading-[0.85] mb-8 drop-shadow-2xl">
+          <h1 className="text-white text-5xl lg:text-[110px] font-[1000] uppercase tracking-tighter leading-[0.85] mb-8 drop-shadow-2xl">
             Navigate ASTU <br /> <span className="text-blue-400 italic">Smartly</span>
           </h1>
           

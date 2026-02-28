@@ -15,12 +15,12 @@ const Campus = ({ onNavigate }) => {
     setSearchTerm('');
     setView(category);
     try {
-      // ✅ Fetching from your FastAPI backend
-      const res = await axios.get(`http://localhost:8000/api/${category}`);
+      // ✅ Updated: Changed localhost:8000 to your live Render Python service URL
+      const res = await axios.get(`https://astu-navigator-chat1.onrender.com/api/${category}`);
       setItems(res.data);
     } catch (err) {
-      // ✅ Specific 404 error handling for missing endpoints
-      setError(`Error 404: The endpoint '/api/${category}' was not found. Please check your FastAPI main.py file.`);
+      // ✅ Specific error handling for the live environment
+      setError(`Connection failed. Please ensure the Python backend at chat1 is active.`);
       setItems([]);
     }
     setLoading(false);

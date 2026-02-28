@@ -4,7 +4,8 @@ const UserManagement = () => {
     const [users, setUsers] = useState([]); // Initialize as empty array
 
     useEffect(() => {
-        fetch('http://localhost:5000/api/admin/users') // Changed to 5000
+        // Updated: Changed localhost:5000 to your live Render API URL
+        fetch('https://astu-navigator-api.onrender.com/api/admin/users') 
             .then(res => res.json())
             .then(data => {
                 // Ensure data is an array before setting state
@@ -20,7 +21,8 @@ const UserManagement = () => {
 
     const deleteUser = async (id) => {
         if (!window.confirm("Delete this user?")) return;
-        await fetch(`http://localhost:5000/api/admin/users/${id}`, { method: 'DELETE' });
+        // Updated: Changed localhost:5000 to your live Render API URL
+        await fetch(`https://astu-navigator-api.onrender.com/api/admin/users/${id}`, { method: 'DELETE' });
         setUsers(users.filter(u => u._id !== id));
     };
 

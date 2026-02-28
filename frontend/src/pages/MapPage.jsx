@@ -56,7 +56,8 @@ export default function MapPage({ onNavigate, userEmail }) {
     // --- 📡 FETCH MARKERS FROM BACKEND ---
     const fetchLocs = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/auth/locations_list');
+            // ✅ Updated: Node.js Render API
+            const res = await axios.get('https://astu-navigator-api.onrender.com/api/auth/locations_list');
             setDbLocations(res.data);
         } catch (err) { 
             console.error("Failed to load map points:", err); 
@@ -78,13 +79,13 @@ export default function MapPage({ onNavigate, userEmail }) {
         }
 
         try {
-            // Ensure coordinates are sent as pure numbers to avoid 400 Bad Request
             const lat = parseFloat(location.lat);
             const lng = parseFloat(location.lng);
 
             if (isNaN(lat) || isNaN(lng)) throw new Error("Invalid Coordinates");
 
-            await axios.post('http://localhost:5000/api/save-location', { 
+            // ✅ Updated: Node.js Render API
+            await axios.post('https://astu-navigator-api.onrender.com/api/save-location', { 
                 email: activeEmail.toLowerCase().trim(), 
                 location: {
                     name: location.name,
@@ -112,11 +113,11 @@ export default function MapPage({ onNavigate, userEmail }) {
         setLoading(true);
 
         try {
-            const response = await axios.post('http://localhost:8000/api/chat', { message: query });
+            // ✅ Updated: FastAPI Render API for Chat/AI
+            const response = await axios.post('https://astu-navigator-fastapi.onrender.com/api/chat', { message: query });
             const { reply, target } = response.data;
 
             if (target && target.lat && target.lng) {
-                // We capture target.category here so it's ready for the save button
                 setMapTarget({ 
                     coords: [target.lat, target.lng], 
                     name: target.name,
@@ -125,7 +126,7 @@ export default function MapPage({ onNavigate, userEmail }) {
             }
             setMessages(prev => [...prev, { text: reply, isBot: true }]);
         } catch (e) { 
-            setMessages(prev => [...prev, { text: "⚠️ AI Navigator is offline.", isBot: true }]);
+            setMessages(prev => [...prev, { text: "⚠️ AI Navigator is offline. Please try again later.", isBot: true }]);
         } finally { 
             setLoading(false); 
         }

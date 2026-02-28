@@ -5,9 +5,9 @@ import {
 
 export default function ProfilePage({ onNavigate, onLogout }) {
   const [userData, setUserData] = useState({
-    name: "Loading...",
-    email: "...",
-    role: "Student"
+    name: "User",
+    email: "Not Logged In",
+    role: "Explorer"
   });
 
   useEffect(() => {
@@ -17,12 +17,10 @@ export default function ProfilePage({ onNavigate, onLogout }) {
 
     if (savedName && savedEmail) {
       // ✅ ROLE NORMALIZER: 
-      // This prevents "admin" text from showing for users who aren't the real admin
-      let displayRole = "Student";
-      if (savedEmail === "admin@astu.edu.et" && savedRole?.toLowerCase() === 'admin') {
+      // Extra check to ensure "Administrator" status is only granted to the specific admin email
+      let displayRole = "Student Explorer";
+      if (savedEmail.toLowerCase() === "admin@astu.edu.et" && savedRole?.toLowerCase() === 'admin') {
         displayRole = "Administrator";
-      } else {
-        displayRole = "Student Explorer";
       }
 
       setUserData({

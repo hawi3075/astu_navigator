@@ -6,8 +6,8 @@ export default function LocationList() {
 
     const fetchLocations = async () => {
         try {
-            // Updated port to 5000 and route to /locations to match your adminRoutes.js
-            const res = await fetch('http://localhost:5000/api/admin/locations'); 
+            // Updated: Changed localhost:5000 to your live Render API URL
+            const res = await fetch('https://astu-navigator-api.onrender.com/api/admin/locations'); 
             const data = await res.json();
             
             if (Array.isArray(data)) {
@@ -25,8 +25,8 @@ export default function LocationList() {
     const handleDelete = async (id) => {
         if (window.confirm("Remove this building from the campus map?")) {
             try {
-                // Updated port to 5000
-                const res = await fetch(`http://localhost:5000/api/admin/locations/${id}`, { 
+                // Updated: Changed localhost:5000 to your live Render API URL
+                const res = await fetch(`https://astu-navigator-api.onrender.com/api/admin/locations/${id}`, { 
                     method: 'DELETE' 
                 });
                 
@@ -54,7 +54,6 @@ export default function LocationList() {
                             <div>
                                 <h3 className="font-bold text-slate-700">{loc.name}</h3>
                                 <p className="text-[10px] text-slate-400 font-mono font-bold tracking-tight">
-                                    {/* Using optional chaining ?. and OR fallback to prevent undefined errors */}
                                     {loc.lat?.toFixed(4) || "0.0000"}, {loc.lng?.toFixed(4) || "0.0000"}
                                 </p>
                             </div>

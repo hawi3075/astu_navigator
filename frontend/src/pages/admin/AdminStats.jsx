@@ -6,8 +6,8 @@ export default function AdminStats() {
 
     const loadStats = async () => {
         try {
-            // Updated to Port 5000
-            const response = await fetch('http://localhost:5000/api/admin/stats');
+            // Updated: Changed localhost:5000 to your live Render API URL
+            const response = await fetch('https://astu-navigator-api.onrender.com/api/admin/stats');
             const data = await response.json();
             
             // This mapping connects the backend names to your frontend state

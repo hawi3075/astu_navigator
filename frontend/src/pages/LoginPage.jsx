@@ -12,13 +12,17 @@ const LoginPage = ({ onLoginSuccess, onNavigateToRegister, onBack }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/login", { 
+      // ✅ Updated: Changed localhost:5000 to your live Render Node.js API URL
+      const res = await axios.post("https://astu-navigator-api.onrender.com/api/auth/login", { 
         email: email.toLowerCase(), 
         password 
       });
+      
+      // ✅ Tip: Ensure your onLoginSuccess function saves the token/email to localStorage
       onLoginSuccess(res.data);
     } catch (err) {
-      alert(err.response?.data?.detail || "Invalid Credentials");
+      // Handling potential different error structures from the backend
+      alert(err.response?.data?.message || err.response?.data?.detail || "Invalid Credentials");
     } finally {
       setLoading(false);
     }

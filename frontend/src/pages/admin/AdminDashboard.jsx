@@ -16,7 +16,8 @@ const AdminDashboard = ({ onLogout }) => {
     const handleLocationSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch('http://localhost:5000/api/admin/locations', {
+            // Updated: Changed http://localhost:5000 to your live Render URL
+            const response = await fetch('https://astu-navigator-api.onrender.com/api/admin/locations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...formData, lat: parseFloat(formData.lat), lng: parseFloat(formData.lng) }),
@@ -47,7 +48,6 @@ const AdminDashboard = ({ onLogout }) => {
             </header>
 
             {/* MAIN SCROLLABLE CONTENT */}
-            {/* pb-40 ensures the content isn't hidden by the long blue nav */}
             <main className="flex-1 w-full max-w-5xl mx-auto p-6 pb-40">
                 
                 {activeTab === 'Manage' && (

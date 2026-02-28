@@ -34,8 +34,8 @@ export default function CampusPage() {
     }
 
     try {
-      // 2. Send request to the backend route we fixed earlier
-      const response = await axios.post('http://localhost:5000/api/save-location', {
+      // ✅ Updated: Changed http://localhost:5000 to your live Render Node.js API URL
+      const response = await axios.post('https://astu-navigator-api.onrender.com/api/save-location', {
         email: email,
         location: {
           name: locationName,

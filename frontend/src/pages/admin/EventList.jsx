@@ -17,7 +17,8 @@ export default function EventList() {
   const fetchEvents = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('http://localhost:5000/api/admin/events');
+      // Updated: Changed http://localhost:5000 to live Render URL
+      const response = await fetch('https://astu-navigator-api.onrender.com/api/admin/events');
       if (response.ok) {
         const data = await response.json();
         setEvents(data);
@@ -45,7 +46,8 @@ export default function EventList() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('http://localhost:5000/api/admin/events', {
+      // Updated: Changed http://localhost:5000 to live Render URL
+      const response = await fetch('https://astu-navigator-api.onrender.com/api/admin/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -70,7 +72,8 @@ export default function EventList() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this event?")) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/events/${id}`, {
+      // Updated: Changed http://localhost:5000 to live Render URL
+      const response = await fetch(`https://astu-navigator-api.onrender.com/api/admin/events/${id}`, {
         method: 'DELETE',
       });
       if (response.ok) {
