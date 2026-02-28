@@ -13,10 +13,15 @@ load_dotenv()
 
 app = FastAPI()
 
-# 🛡️ CORS setup - Critical for Vite (5173) to communicate with FastAPI (8000)
+# 🛡️ CORS setup - Updated to authorize your live Vercel site
+origins = [
+    "http://localhost:5173",
+    "https://astu-navigator-ysgh.vercel.app",  # Your live Vercel link
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -126,7 +131,6 @@ async def chat_endpoint(request: ChatRequest):
     
     # Helper to safely extract coordinates regardless of naming convention
     def get_coords(loc_obj):
-        # Checks for 'latitude' or 'lat' or 'coordinates' array
         lat = loc_obj.get("latitude") or loc_obj.get("lat")
         lng = loc_obj.get("longitude") or loc_obj.get("lng")
         

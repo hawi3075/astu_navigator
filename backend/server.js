@@ -11,7 +11,15 @@ const userRoutes = require('./routes/userRoutes');
 
 const app = express();
 
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+// ✅ UPDATED: Allowed both local testing and your live Vercel site
+app.use(cors({ 
+    origin: [
+        "http://localhost:5173", 
+        "https://astu-navigator-ysgh.vercel.app"
+    ], 
+    credentials: true 
+}));
+
 app.use(express.json()); 
 
 app.use('/api/auth', authRoutes); 
