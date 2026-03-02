@@ -8,15 +8,14 @@ from groq import Groq
 from thefuzz import process 
 import uvicorn
 
-# Load environment variables from .env file
 load_dotenv()
 
 app = FastAPI()
 
-# 🛡️ CORS setup - Updated to authorize your live Vercel site
+# 🛡️ CORS setup
 origins = [
     "http://localhost:5173",
-    "https://astu-navigator-ysgh.vercel.app",  # Your live Vercel link
+    "https://astu-navigator-ysgh.vercel.app", 
 ]
 
 app.add_middleware(
@@ -31,15 +30,10 @@ app.add_middleware(
 MONGO_URI = os.getenv("MONGO_URI")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# Validate API Key existence
-if not GROQ_API_KEY:
-    print("❌ ERROR: GROQ_API_KEY not found in environment variables!")
-
 client = AsyncIOMotorClient(MONGO_URI)
 db = client.ASTU_Nav
 gro_client = Groq(api_key=GROQ_API_KEY)
 
-# --- Helper to serialize MongoDB docs ---
 def fix_id(doc):
     if doc:
         doc["_id"] = str(doc["_id"])
@@ -83,7 +77,7 @@ async def get_all_locations():
 @app.post("/api/save-location")
 async def save_location(request: SaveLocationRequest):
     await db.saved_locations.update_one(
-        {"user_email": request.user_email, "location_name": request.location_name},
+        {"user_email": request.user_email.lower(), "location_name": request.location_name},
         {"$set": request.model_dump()},
         upsert=True
     )
@@ -91,55 +85,63 @@ async def save_location(request: SaveLocationRequest):
 
 @app.delete("/api/save-location")
 async def remove_location(email: str, location_name: str):
-    result = await db.saved_locations.delete_one({"user_email": email, "location_name": location_name})
+    result = await db.saved_locations.delete_one({"user_email": email.lower(), "location_name": location_name})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Location not found")
     return {"message": "Removed successfully"}
 
 @app.get("/api/saved-locations/{email}")
 async def get_saved_locations(email: str):
-    saved_docs = await db.saved_locations.find({"user_email": email}).to_list(length=100)
+    saved_docs = await db.saved_locations.find({"user_email": email.lower()}).to_list(length=100)
     names = [doc["location_name"] for doc in saved_docs]
     full_details = await db.locations.find({"name": {"$in": names}}).to_list(length=100)
     return [fix_id(loc) for loc in full_details]
 
 @app.post("/api/register")
 async def register_user(user: RegisterRequest):
-    if await db.users.find_one({"email": user.email}):
+    # ✅ FIX: Convert email to lowercase before checking/saving
+    user_data = user.model_dump()
+    user_data["email"] = user.email.lower()
+    
+    if await db.users.find_one({"email": user_data["email"]}):
         raise HTTPException(status_code=400, detail="User already exists")
-    await db.users.insert_one(user.model_dump())
+    
+    await db.users.insert_one(user_data)
     return {"message": "Registration Successful"}
 
 @app.post("/api/login")
 async def login_user(user: LoginRequest):
+    # ✅ FIX: Search using lowercase email to prevent login errors
     db_user = await db.users.find_one({"email": user.email.lower()})
-    if not db_user or db_user["password"] != user.password:
+    
+    if not db_user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Simple check for plain text password (Update to hashing later for security!)
+    if str(db_user["password"]) != str(user.password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+        
     return {
         "name": db_user.get("name", "ASTU User"), 
         "email": db_user["email"],
         "role": db_user.get("role", "user").lower() 
     }
 
-# --- 🤖 AI Navigator with Enhanced Matching ---
-
+# --- 🤖 AI Navigator ---
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     user_msg = request.message.strip().lower()
     locations = await db.locations.find({}).to_list(length=200)
     names = [loc["name"] for loc in locations]
     
-    # Helper to safely extract coordinates regardless of naming convention
     def get_coords(loc_obj):
         lat = loc_obj.get("latitude") or loc_obj.get("lat")
         lng = loc_obj.get("longitude") or loc_obj.get("lng")
-        
         if lat is None and "coordinates" in loc_obj:
             lat = loc_obj["coordinates"][0]
             lng = loc_obj["coordinates"][1]
         return lat, lng
 
-    # 1. Fuzzy match check
     if names:
         best_match, score = process.extractOne(user_msg, names)
         if score > 85:
@@ -150,18 +152,15 @@ async def chat_endpoint(request: ChatRequest):
                 "target": {"lat": lat, "lng": lng, "name": found["name"]}
             }
 
-    # 2. AI completion
     try:
         completion = gro_client.chat.completions.create(
             messages=[
-                {"role": "system", "content": f"You are the ASTU Navigator AI. Help students find buildings. Campus buildings available: {', '.join(names)}. Always mention the specific building name if found."},
+                {"role": "system", "content": f"You are the ASTU Navigator AI. Help students find buildings. Campus buildings: {', '.join(names)}."},
                 {"role": "user", "content": user_msg}
             ],
             model="llama-3.3-70b-versatile",
         )
         ai_reply = completion.choices[0].message.content
-        
-        # Cross-reference AI reply with DB names
         ai_match = next((l for l in locations if l["name"].lower() in ai_reply.lower()), None)
         
         target_data = None
@@ -169,13 +168,9 @@ async def chat_endpoint(request: ChatRequest):
             lat, lng = get_coords(ai_match)
             target_data = {"lat": lat, "lng": lng, "name": ai_match["name"]}
 
-        return {
-            "reply": ai_reply,
-            "target": target_data
-        }
+        return {"reply": ai_reply, "target": target_data}
     except Exception as e:
-        print(f"Groq API Error: {e}")
-        return {"reply": "I'm having a bit of trouble connecting to my AI core, but I can still help you find buildings by name!", "target": None}
+        return {"reply": "I'm having trouble with my AI core right now.", "target": None}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
