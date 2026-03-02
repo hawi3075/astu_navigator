@@ -8,11 +8,12 @@ from groq import Groq
 from thefuzz import process 
 import uvicorn
 
+# Load environment variables
 load_dotenv()
 
 app = FastAPI()
 
-# 🛡️ CORS setup
+# 🛡️ CORS setup - Authorized for your live Vercel site
 origins = [
     "http://localhost:5173",
     "https://astu-navigator-ysgh.vercel.app", 
@@ -99,7 +100,6 @@ async def get_saved_locations(email: str):
 
 @app.post("/api/register")
 async def register_user(user: RegisterRequest):
-    # ✅ FIX: Convert email to lowercase before checking/saving
     user_data = user.model_dump()
     user_data["email"] = user.email.lower()
     
@@ -111,13 +111,11 @@ async def register_user(user: RegisterRequest):
 
 @app.post("/api/login")
 async def login_user(user: LoginRequest):
-    # ✅ FIX: Search using lowercase email to prevent login errors
     db_user = await db.users.find_one({"email": user.email.lower()})
     
     if not db_user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # Simple check for plain text password (Update to hashing later for security!)
     if str(db_user["password"]) != str(user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
         
@@ -132,6 +130,8 @@ async def login_user(user: LoginRequest):
 async def chat_endpoint(request: ChatRequest):
     user_msg = request.message.strip().lower()
     locations = await db.locations.find({}).to_list(length=200)
+    
+    # ✅ Corrected Syntax for list comprehension
     names = [loc["name"] for loc in locations]
     
     def get_coords(loc_obj):
@@ -155,7 +155,7 @@ async def chat_endpoint(request: ChatRequest):
     try:
         completion = gro_client.chat.completions.create(
             messages=[
-                {"role": "system", "content": f"You are the ASTU Navigator AI. Help students find buildings. Campus buildings: {', '.join(names)}."},
+                {"role": "system", "content": f"You are the ASTU Navigator AI. Campus buildings: {', '.join(names)}."},
                 {"role": "user", "content": user_msg}
             ],
             model="llama-3.3-70b-versatile",
@@ -170,7 +170,7 @@ async def chat_endpoint(request: ChatRequest):
 
         return {"reply": ai_reply, "target": target_data}
     except Exception as e:
-        return {"reply": "I'm having trouble with my AI core right now.", "target": None}
+        return {"reply": "I'm having trouble with my AI core.", "target": None}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
