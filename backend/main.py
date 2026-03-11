@@ -8,16 +8,16 @@ from groq import Groq
 from thefuzz import process 
 import uvicorn
 
-# Load environment variables
+# 1. Load environment variables
 load_dotenv()
 
 app = FastAPI()
 
-# 🛡️ FIXED CORS SETUP
-# This ensures your Vercel site can talk to your Render backend
+# 2. 🛡️ CRITICAL CORS FIX
+# This allows your Vercel site to bypass the "Access-Control-Allow-Origin" error
 origins = [
-    "http://localhost:5173",
-    "https://astu-navigator-ysgh.vercel.app", 
+    "http://localhost:5173",                     # For local development
+    "https://astu-navigator-ysgh.vercel.app",    # Your live Vercel frontend
 ]
 
 app.add_middleware(
@@ -28,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 🔌 Connections
+# 3. 🔌 Connections
 MONGO_URI = os.getenv("MONGO_URI")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -132,6 +132,7 @@ async def chat_endpoint(request: ChatRequest):
     user_msg = request.message.strip().lower()
     locations = await db.locations.find({}).to_list(length=200)
     
+    # Corrected list comprehension
     names = [loc["name"] for loc in locations]
     
     def get_coords(loc_obj):
@@ -142,6 +143,7 @@ async def chat_endpoint(request: ChatRequest):
             lng = loc_obj["coordinates"][1]
         return lat, lng
 
+    # 1. Fuzzy Search first
     if names:
         best_match, score = process.extractOne(user_msg, names)
         if score > 85:
@@ -152,6 +154,7 @@ async def chat_endpoint(request: ChatRequest):
                 "target": {"lat": lat, "lng": lng, "name": found["name"]}
             }
 
+    # 2. AI Fallback (Groq)
     try:
         completion = gro_client.chat.completions.create(
             messages=[
