@@ -131,7 +131,7 @@ async def chat_endpoint(request: ChatRequest):
     user_msg = request.message.strip().lower()
     locations = await db.locations.find({}).to_list(length=200)
     
-    
+    # ✅ FIXED: Correct list comprehension syntax
     names = [loc["name"] for loc in locations]
     
     def get_coords(loc_obj):
