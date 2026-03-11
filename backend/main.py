@@ -13,7 +13,7 @@ load_dotenv()
 
 app = FastAPI()
 
-# 🛡️ CORS setup - Authorized for your live Vercel site
+# 🛡️ CORS setup - Fully authorized for your live Vercel site and local development
 origins = [
     "http://localhost:5173",
     "https://astu-navigator-ysgh.vercel.app", 
@@ -131,7 +131,7 @@ async def chat_endpoint(request: ChatRequest):
     user_msg = request.message.strip().lower()
     locations = await db.locations.find({}).to_list(length=200)
     
-    # ✅ FIXED: Correct list comprehension syntax
+    # Extract names for searching
     names = [loc["name"] for loc in locations]
     
     def get_coords(loc_obj):
@@ -142,6 +142,7 @@ async def chat_endpoint(request: ChatRequest):
             lng = loc_obj["coordinates"][1]
         return lat, lng
 
+    # 1. First, check for an exact or high-score match (Fuzzy Search)
     if names:
         best_match, score = process.extractOne(user_msg, names)
         if score > 85:
@@ -152,15 +153,18 @@ async def chat_endpoint(request: ChatRequest):
                 "target": {"lat": lat, "lng": lng, "name": found["name"]}
             }
 
+    # 2. If no direct match, ask the AI (Groq/Llama)
     try:
         completion = gro_client.chat.completions.create(
             messages=[
-                {"role": "system", "content": f"You are the ASTU Navigator AI. Campus buildings: {', '.join(names)}."},
+                {"role": "system", "content": f"You are the ASTU Navigator AI. Help students find buildings on the ASTU campus. Known buildings: {', '.join(names)}."},
                 {"role": "user", "content": user_msg}
             ],
             model="llama-3.3-70b-versatile",
         )
         ai_reply = completion.choices[0].message.content
+        
+        # Check if AI mentioned a building we know
         ai_match = next((l for l in locations if l["name"].lower() in ai_reply.lower()), None)
         
         target_data = None
@@ -170,7 +174,7 @@ async def chat_endpoint(request: ChatRequest):
 
         return {"reply": ai_reply, "target": target_data}
     except Exception as e:
-        return {"reply": "I'm having trouble with my AI core.", "target": None}
+        return {"reply": "I'm having trouble with my AI core. Please try again later.", "target": None}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
