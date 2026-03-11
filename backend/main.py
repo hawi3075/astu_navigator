@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -8,16 +8,16 @@ from groq import Groq
 from thefuzz import process 
 import uvicorn
 
-# 1. Load environment variables
+# 1. Load Environment Variables
 load_dotenv()
 
 app = FastAPI()
 
-# 2. 🛡️ CRITICAL CORS FIX
-# This allows your Vercel site to bypass the "Access-Control-Allow-Origin" error
+# 2. 🛡️ THE FINAL CORS FIX
+# This list matches your Vercel origin exactly to stop the ERR_FAILED block
 origins = [
-    "http://localhost:5173",                     # For local development
-    "https://astu-navigator-ysgh.vercel.app",    # Your live Vercel frontend
+    "http://localhost:5173",
+    "https://astu-navigator-ysgh.vercel.app",
 ]
 
 app.add_middleware(
@@ -28,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 3. 🔌 Connections
+# 3. 🔌 Database & AI Connections
 MONGO_URI = os.getenv("MONGO_URI")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -41,7 +41,7 @@ def fix_id(doc):
         doc["_id"] = str(doc["_id"])
     return doc
 
-# --- Pydantic Models ---
+# 4. --- Pydantic Models ---
 class ChatRequest(BaseModel):
     message: str
 
@@ -59,7 +59,7 @@ class SaveLocationRequest(BaseModel):
     user_email: EmailStr
     location_name: str
 
-# --- 🚀 Routes ---
+# 5. --- 🚀 API Routes ---
 
 @app.get("/api/events")
 async def get_all_events():
@@ -103,59 +103,41 @@ async def get_saved_locations(email: str):
 async def register_user(user: RegisterRequest):
     user_data = user.model_dump()
     user_data["email"] = user.email.lower()
-    
     if await db.users.find_one({"email": user_data["email"]}):
         raise HTTPException(status_code=400, detail="User already exists")
-    
     await db.users.insert_one(user_data)
     return {"message": "Registration Successful"}
 
 @app.post("/api/login")
 async def login_user(user: LoginRequest):
     db_user = await db.users.find_one({"email": user.email.lower()})
-    
-    if not db_user:
+    if not db_user or str(db_user["password"]) != str(user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    if str(db_user["password"]) != str(user.password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-        
     return {
         "name": db_user.get("name", "ASTU User"), 
         "email": db_user["email"],
         "role": db_user.get("role", "user").lower() 
     }
 
-# --- 🤖 AI Navigator ---
+# 6. --- 🤖 AI Navigator Logic ---
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     user_msg = request.message.strip().lower()
-    locations = await db.locations.find({}).to_list(length=200)
-    
-    # Corrected list comprehension
-    names = [loc["name"] for loc in locations]
-    
-    def get_coords(loc_obj):
-        lat = loc_obj.get("latitude") or loc_obj.get("lat")
-        lng = loc_obj.get("longitude") or loc_obj.get("lng")
-        if lat is None and "coordinates" in loc_obj:
-            lat = loc_obj["coordinates"][0]
-            lng = loc_obj["coordinates"][1]
-        return lat, lng
-
-    # 1. Fuzzy Search first
-    if names:
-        best_match, score = process.extractOne(user_msg, names)
-        if score > 85:
-            found = next(l for l in locations if l["name"] == best_match)
-            lat, lng = get_coords(found)
-            return {
-                "reply": f"📍 Moving map to **{found['name']}**.",
-                "target": {"lat": lat, "lng": lng, "name": found["name"]}
-            }
-
-    # 2. AI Fallback (Groq)
     try:
+        locations = await db.locations.find({}).to_list(length=200)
+        names = [loc["name"] for loc in locations]
+        
+        # Fuzzy matching for accuracy
+        if names:
+            best_match, score = process.extractOne(user_msg, names)
+            if score > 85:
+                found = next(l for l in locations if l["name"] == best_match)
+                return {
+                    "reply": f"📍 Moving map to **{found['name']}**.",
+                    "target": {"lat": found.get("latitude"), "lng": found.get("longitude"), "name": found["name"]}
+                }
+
+        # Groq AI Fallback
         completion = gro_client.chat.completions.create(
             messages=[
                 {"role": "system", "content": f"You are the ASTU Navigator AI. Campus buildings: {', '.join(names)}."},
@@ -168,12 +150,12 @@ async def chat_endpoint(request: ChatRequest):
         
         target_data = None
         if ai_match:
-            lat, lng = get_coords(ai_match)
-            target_data = {"lat": lat, "lng": lng, "name": ai_match["name"]}
+            target_data = {"lat": ai_match.get("latitude"), "lng": ai_match.get("longitude"), "name": ai_match["name"]}
 
         return {"reply": ai_reply, "target": target_data}
     except Exception as e:
-        return {"reply": "I'm having trouble with my AI core. Please try again later.", "target": None}
+        return {"reply": "AI is temporarily offline. Please try again in a moment.", "target": None}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
