@@ -14,7 +14,7 @@ load_dotenv()
 app = FastAPI()
 
 # 2. 🛡️ THE FINAL CORS FIX
-# This list matches your Vercel origin exactly to stop the ERR_FAILED block
+# This allows your Vercel site to communicate with this backend.
 origins = [
     "http://localhost:5173",
     "https://astu-navigator-ysgh.vercel.app",
@@ -28,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 3. 🔌 Database & AI Connections
+# 3. 🔌 Connections
 MONGO_URI = os.getenv("MONGO_URI")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -59,7 +59,7 @@ class SaveLocationRequest(BaseModel):
     user_email: EmailStr
     location_name: str
 
-# 5. --- 🚀 API Routes ---
+# 5. --- 🚀 Routes ---
 
 @app.get("/api/events")
 async def get_all_events():
@@ -119,7 +119,7 @@ async def login_user(user: LoginRequest):
         "role": db_user.get("role", "user").lower() 
     }
 
-# 6. --- 🤖 AI Navigator Logic ---
+# 6. --- 🤖 AI Navigator ---
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     user_msg = request.message.strip().lower()
@@ -127,7 +127,7 @@ async def chat_endpoint(request: ChatRequest):
         locations = await db.locations.find({}).to_list(length=200)
         names = [loc["name"] for loc in locations]
         
-        # Fuzzy matching for accuracy
+        # 1. Fuzzy Match
         if names:
             best_match, score = process.extractOne(user_msg, names)
             if score > 85:
@@ -137,7 +137,7 @@ async def chat_endpoint(request: ChatRequest):
                     "target": {"lat": found.get("latitude"), "lng": found.get("longitude"), "name": found["name"]}
                 }
 
-        # Groq AI Fallback
+        # 2. AI Fallback
         completion = gro_client.chat.completions.create(
             messages=[
                 {"role": "system", "content": f"You are the ASTU Navigator AI. Campus buildings: {', '.join(names)}."},
@@ -153,9 +153,8 @@ async def chat_endpoint(request: ChatRequest):
             target_data = {"lat": ai_match.get("latitude"), "lng": ai_match.get("longitude"), "name": ai_match["name"]}
 
         return {"reply": ai_reply, "target": target_data}
-    except Exception as e:
-        return {"reply": "AI is temporarily offline. Please try again in a moment.", "target": None}
+    except Exception:
+        return {"reply": "AI Navigator is offline. Please try again later.", "target": None}
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
